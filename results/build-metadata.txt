@@ -1,0 +1,14 @@
+measured_at_utc=2026-08-27T14:54:28Z
+build_duration_seconds=78.30
+image=local/vllm-cpu:qwen2.5-0.5b-vllm0.26.0
+image_id=sha256:7c9bda712a7b5cef768a248c88f96ec0c184230855638d9c2f084858e1ddf760
+reorganized_layout_cached_rebuild_image_id=sha256:79ecb81da92ef0df481371868f7e2f7140fed90e642f2071aa11b17c41463722
+image_config_id=sha256:ce1d09968b2d6576224e46b3f984711957b0f5e980e99e5e58e1532f24681aed
+image_size_bytes=1639041791
+image_os=linux
+image_architecture=arm64
+vllm_version=0.26.0+cpu
+model_id=Qwen/Qwen2.5-0.5B-Instruct
+model_revision=7ae557604adf67be50417f59c2c2f167def9a775
+model_directory_size=954M
+model_files_verified=model.safetensors,tokenizer.json

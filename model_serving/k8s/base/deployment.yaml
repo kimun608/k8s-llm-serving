@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-cpu
+  namespace: llm-serving
+  labels:
+    app.kubernetes.io/name: vllm-cpu
+    app.kubernetes.io/component: inference-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vllm-cpu
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm-cpu
+        app.kubernetes.io/component: inference-server
+    spec:
+      # Prevent Kubernetes Service variables such as VLLM_CPU_SERVICE_HOST
+      # from being mistaken for vLLM's own VLLM_CPU_* configuration.
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/os: linux
+        kubernetes.io/arch: arm64
+        node-role.kubernetes.io/worker: ""
+      containers:
+        - name: vllm
+          image: local/vllm-cpu:qwen2.5-0.5b-vllm0.26.0
+          imagePullPolicy: Never
+          command: ["vllm", "serve"]
+          args:
+            - /models/qwen2.5-0.5b-instruct
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --served-model-name
+            - qwen2.5-0.5b-instruct
+            - --dtype
+            - float16
+            - --max-model-len
+            - "2048"
+            - --max-num-seqs
+            - "20"
+            - --max-num-batched-tokens
+            - "2048"
+            - --no-enable-prefix-caching
+          env:
+            - name: VLLM_CPU_KVCACHE_SPACE
+              value: "1"
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: TOKENIZERS_PARALLELISM
+              value: "false"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: "4"
+              memory: 3Gi
+            limits:
+              cpu: "6"
+              memory: 5Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 180
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["SYS_NICE"]
+            seccompProfile:
+              type: Unconfined
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi

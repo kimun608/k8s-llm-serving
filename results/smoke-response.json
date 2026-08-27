@@ -1,0 +1,22 @@
+{
+  "health": {
+    "http_status": 200
+  },
+  "model": {
+    "id": "qwen2.5-0.5b-instruct",
+    "owned_by": "vllm",
+    "root": "/models/qwen2.5-0.5b-instruct",
+    "max_model_len": 2048
+  },
+  "chat_completion": {
+    "id": "chatcmpl-b5950dd65d2852df",
+    "model": "qwen2.5-0.5b-instruct",
+    "content": "The \"CPU serving is ready\" message indicates that the system has detected that the",
+    "finish_reason": "length",
+    "usage": {
+      "prompt_tokens": 37,
+      "completion_tokens": 16,
+      "total_tokens": 53
+    }
+  }
+}
