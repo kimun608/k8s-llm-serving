@@ -63,7 +63,7 @@ FP8 KV가 지원되지 않으면 베이스라인 병목에 직접 대응하는 �
 - `max-num-seqs`: 20 → 24
 - Pod memory limit과 CPU limit은 그대로 유지
 
-베이스라인 peak memory가 5.85GiB였으므로 256MiB의 KV 증가 후에도 6.5GiB limit 안의 headroom이 예상됩니다. 이 설정은 cache dtype을 바꾸지 않으므로 수치 정밀도 변화가 없고, C=20 이상에서 peak running 16을 늘릴 수 있는지 직접 검증할 수 있습니다. 반면 더 큰 batch가 CPU 경쟁을 키우면 TPOT 또는 전체 처리량이 악화될 수 있습니다.
+재측정된 베이스라인 peak memory가 6.05GiB였으므로 256MiB의 KV 증가 후에는 6.5GiB limit까지 headroom이 작을 것으로 예상됩니다. 이 설정은 cache dtype을 바꾸지 않으므로 수치 정밀도 변화가 없고, C=20 이상에서 peak running 16을 늘릴 수 있는지 직접 검증할 수 있습니다. 반면 더 큰 batch가 CPU 경쟁을 키우면 TPOT 또는 전체 처리량이 악화될 수 있습니다.
 
 ## 실험 행렬
 
@@ -181,7 +181,7 @@ KV tuning은 MTP 단독 대비 output throughput을 17.3% 높이고 E2E p95를 1
 | C | Baseline output tok/s | MTP2 | MTP2+KV | 결합 vs baseline |
 |---:|---:|---:|---:|---:|
 | 1 | 5.16 | 7.80 | 7.43 | +44.0% |
-| 2 | 7.78 | 9.99 | 10.01 | +28.7% |
+| 2 | 7.64 | 9.99 | 10.01 | +31.0% |
 | 5 | 11.28 | 11.87 | 11.40 | +1.1% |
 | 10 | 12.06 | 11.81 | 11.51 | -4.6% |
 | 20 | 13.50 | 11.78 | 11.84 | -12.3% |
@@ -191,3 +191,5 @@ KV tuning은 MTP 단독 대비 output throughput을 17.3% 높이고 E2E p95를 1
 MTP2의 약 75~77% acceptance는 낮은 동시성의 decode를 크게 개선했다. 그러나 512MiB KV에서 active running이 5로 제한돼 C≥20 총 처리량은 baseline보다 낮았다. 768MiB KV는 running을 8로 늘리고 waiting을 3씩 줄였지만, 6-core CPU에서 batch 경쟁을 키워 MTP 단독 대비 C=10~100 TPOT p95가 46.8~76.7% 악화됐다. 따라서 저동시성에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 이 장비의 더 나은 선택이며 768MiB/24-seq 결합 설정은 범용 기본값으로 채택하지 않는다.
 
 자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 상세 원인·실패 후보·GPU production 전환 분석은 [`reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 있다.
+
+이후 baseline에서 CPU limit만 `6 → 8`로 바꾼 독립 실험은 [`optimization/cpu8/README.md`](cpu8/README.md)와 [`reports/05_BASELINE_CPU8_ANALYSIS.md`](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 분리했다.

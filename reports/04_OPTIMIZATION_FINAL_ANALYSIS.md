@@ -6,13 +6,15 @@ Qwen3.5-0.8B의 native MTP와 KV/scheduler capacity 조정을 실제 Kind worker
 
 결과는 부하 영역에 따라 갈렸다.
 
-- MTP2는 C=1과 2에서 output throughput을 각각 51.1%, 28.4% 높였다. C=1 TPOT p95도 40.3% 줄었다.
+- MTP2는 C=1과 2에서 output throughput을 각각 51.1%, 30.7% 높였다. C=1 TPOT p95도 40.3% 줄었다.
 - C=20 이상에서는 MTP가 차지하는 KV/cache 및 verification 비용 때문에 baseline 대비 output throughput이 8.6~12.7% 낮았다.
 - KV를 512MiB에서 768MiB로 늘리면 MTP 환경의 peak running이 5에서 8로 증가하고 peak waiting은 3개씩 줄었다. 그러나 같은 6-core CPU에서 더 큰 active batch를 실행해 MTP 단독 대비 TPOT p95가 C=10~100에서 46.8~76.7% 악화됐다.
 - 두 최적화를 결합한 설정은 baseline 대비 C=1·2에서 유리하지만 C=10·20·50·100의 output throughput은 4.6~12.3% 낮다. 따라서 이 장비에서는 결합 설정을 모든 부하의 단일 정답으로 채택할 수 없다.
 - 운영 선택은 저동시성·interactive 요청에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 타당하다. 768MiB KV/24 sequences 설정은 waiting을 조금 줄였지만 6-core 환경의 기본값으로는 권장하지 않는다.
 
-7개 phase의 시간을 단순 합산하면 baseline은 4,583.31초, MTP는 4,137.20초, 결합 설정은 4,190.49초였다. 동일한 총 44,800 output tokens 기준 합산 처리량은 각각 9.77, 10.83, 10.69 token/s다. 이 합산치는 저동시성 phase의 긴 실행 시간을 포함한 실험 전체 비용이며, 특정 운영 동시성의 capacity를 대신하지 않는다.
+7개 phase의 시간을 단순 합산하면 baseline은 4,598.07초, MTP는 4,137.20초, 결합 설정은 4,190.49초였다. 동일한 총 44,800 output tokens 기준 합산 처리량은 각각 9.74, 10.83, 10.69 token/s다. 이 합산치는 저동시성 phase의 긴 실행 시간을 포함한 실험 전체 비용이며, 특정 운영 동시성의 capacity를 대신하지 않는다.
+
+baseline의 초기 C=2 표본에는 host 중단이 있어 원시 자료를 보존하고 같은 100건으로 재측정했다. 위 수치와 자동 비교표는 중단 없는 재측정 baseline을 사용한다. 제외·재측정 기준과 증거는 [CPU 8 단일 변경 리포트](05_BASELINE_CPU8_ANALYSIS.md)의 데이터 유효성 절에 함께 기록했다.
 
 ## 장비·모델·런타임 선택 근거
 
@@ -74,7 +76,7 @@ Qwen3.5-0.8B의 native MTP와 KV/scheduler capacity 조정을 실제 Kind worker
 | C | Output tok/s baseline → combined | 변화 | E2E p95 변화 | TTFT p95 변화 | TPOT p95 변화 | Peak run/wait baseline → combined |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1 | 5.16 → 7.43 | +44.0% | -19.2% | +1.9% | -36.3% | 1/0 → 1/0 |
-| 2 | 7.78 → 10.01 | +28.7% | -24.3% | -3.8% | -10.7% | 2/0 → 2/0 |
+| 2 | 7.64 → 10.01 | +31.0% | -13.8% | -12.9% | -14.4% | 2/0 → 2/0 |
 | 5 | 11.28 → 11.40 | +1.1% | -3.1% | -58.1% | +11.0% | 5/0 → 5/0 |
 | 10 | 12.06 → 11.51 | -4.6% | +7.0% | -39.8% | +7.4% | 10/1 → 8/2 |
 | 20 | 13.50 → 11.84 | -12.3% | -2.8% | +14.4% | -21.4% | 16/11 → 8/12 |
@@ -87,7 +89,7 @@ Qwen3.5-0.8B의 native MTP와 KV/scheduler capacity 조정을 실제 Kind worker
 
 ### C=1~2: MTP decode 이득
 
-동시에 실행하는 sequence가 적을 때 baseline은 CPU memory-bound decode를 한 token씩 반복한다. MTP2는 acceptance 약 76%로 다음 token 두 개 중 상당수를 한 번의 target verification에서 수용했다. 그 결과 C=1 output throughput은 51.1%, C=2는 28.4% 증가했다. KV 증설은 이 영역에서 사용되지 않으므로 결합 설정은 MTP 단독 대비 C=1 처리량이 4.7% 낮고 C=2는 0.2% 높은 정도였다. 이 차이는 설정 이득보다는 단일 반복의 host background load와 thermal 변동 범위로 보는 것이 안전하다.
+동시에 실행하는 sequence가 적을 때 baseline은 CPU memory-bound decode를 한 token씩 반복한다. MTP2는 acceptance 약 76%로 다음 token 두 개 중 상당수를 한 번의 target verification에서 수용했다. 그 결과 C=1 output throughput은 51.1%, C=2는 30.7% 증가했다. KV 증설은 이 영역에서 사용되지 않으므로 결합 설정은 MTP 단독 대비 C=1 처리량이 4.7% 낮고 C=2는 0.2% 높은 정도였다. 이 차이는 설정 이득보다는 단일 반복의 host background load와 thermal 변동 범위로 보는 것이 안전하다.
 
 ### C=5~10: MTP용 KV capacity와 CPU batch 경쟁이 교차
 
@@ -105,7 +107,7 @@ MTP의 고동시성 TPOT p95가 baseline보다 낮은데 총 처리량도 낮은
 
 ### 메모리와 안정성
 
-- 최대 Pod RAM: baseline 5.85GiB, MTP 6.14GiB, 결합 6.29GiB
+- 최대 Pod RAM: baseline 6.05GiB, MTP 6.14GiB, 결합 6.29GiB
 - Pod limit: 6.5GiB
 - OOM kill/restart: 모든 정식 phase 0
 - Preemption: baseline 총 2, MTP와 결합 설정 0

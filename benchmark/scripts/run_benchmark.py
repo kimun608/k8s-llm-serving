@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import copy
 import csv
 import hashlib
 import json
@@ -12,6 +13,7 @@ import math
 import os
 import platform
 import signal
+import shutil
 import subprocess
 import sys
 import threading
@@ -576,6 +578,19 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Safely stop after N newly completed phases; resume later with --resume",
     )
+    parser.add_argument(
+        "--rerun-concurrencies",
+        nargs="+",
+        type=int,
+        help=(
+            "With --resume, preserve the selected completed phases under excluded/ "
+            "and measure them again"
+        ),
+    )
+    parser.add_argument(
+        "--rerun-reason",
+        help="Reason recorded with phases replaced by --rerun-concurrencies",
+    )
     return parser.parse_args()
 
 
@@ -636,6 +651,55 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             completed.add(concurrency)
         if not completed.issubset(set(concurrencies)):
             raise RuntimeError("Cannot resume: saved phase is not in the requested concurrency matrix")
+
+        rerun_concurrencies = set(args.rerun_concurrencies or [])
+        if rerun_concurrencies:
+            missing = rerun_concurrencies - completed
+            if missing:
+                raise RuntimeError(
+                    f"Cannot rerun phases that are not completed: {sorted(missing)}"
+                )
+            exclusion_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            kept_phases = []
+            for phase in manifest.get("phases", []):
+                concurrency = int(phase["concurrency"])
+                if concurrency not in rerun_concurrencies:
+                    kept_phases.append(phase)
+                    continue
+                excluded_dir = (
+                    args.output
+                    / "excluded"
+                    / f"{exclusion_stamp}-c{concurrency:02d}"
+                )
+                excluded_dir.mkdir(parents=True, exist_ok=False)
+                artifact_paths = [
+                    args.output / phase["requests_file"],
+                    args.output / phase["metrics_file"],
+                    raw_dir / f"phase-c{concurrency:02d}.json",
+                ]
+                for artifact_path in artifact_paths:
+                    if artifact_path.is_file():
+                        shutil.copy2(artifact_path, excluded_dir / artifact_path.name)
+                excluded_phase = copy.deepcopy(phase)
+                excluded_phase["excluded_at_utc"] = utc_now()
+                excluded_phase["exclusion_reason"] = (
+                    args.rerun_reason or "Explicit benchmark phase rerun"
+                )
+                excluded_phase["artifacts_directory"] = str(
+                    excluded_dir.relative_to(args.output)
+                )
+                manifest.setdefault("excluded_phases", []).append(excluded_phase)
+                write_json(
+                    excluded_dir / "exclusion.json",
+                    {
+                        "concurrency": concurrency,
+                        "excluded_at_utc": excluded_phase["excluded_at_utc"],
+                        "reason": excluded_phase["exclusion_reason"],
+                        "original_phase": phase,
+                    },
+                )
+                completed.remove(concurrency)
+            manifest["phases"] = kept_phases
         manifest.setdefault("resumed_at_utc", []).append(utc_now())
         manifest["status"] = "running"
         manifest["finished_at_utc"] = None
@@ -747,6 +811,7 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
         }
         write_json(phase_file, phase)
         manifest["phases"].append(phase)
+        manifest["phases"].sort(key=lambda saved: int(saved["concurrency"]))
         write_json(manifest_path, manifest)
         print(
             f"[concurrency={concurrency}] completed in {duration:.2f}s; "
@@ -789,6 +854,12 @@ def main() -> int:
         raise ValueError("All concurrency values must be positive")
     if args.max_new_phases is not None and args.max_new_phases < 1:
         raise ValueError("--max-new-phases must be at least 1")
+    if args.rerun_concurrencies and not args.resume:
+        raise ValueError("--rerun-concurrencies requires --resume")
+    if args.rerun_concurrencies and any(value < 1 for value in args.rerun_concurrencies):
+        raise ValueError("All --rerun-concurrencies values must be positive")
+    if args.rerun_reason and not args.rerun_concurrencies:
+        raise ValueError("--rerun-reason requires --rerun-concurrencies")
     if args.output.exists() and any(args.output.iterdir()) and not args.resume:
         raise RuntimeError(f"Output directory is not empty: {args.output}")
     args.output.mkdir(parents=True, exist_ok=True)

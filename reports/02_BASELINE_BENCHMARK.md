@@ -69,7 +69,7 @@ make benchmark-analyze
 | C | 성공률 | req/s | output tok/s | E2E p50 / p95 (s) | TTFT p50 / p95 (s) | TPOT p50 / p95 (ms) | peak running / waiting | peak KV | avg CPU | peak RAM |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | 1 | 100% | 0.081 | 5.16 | 11.31 / 19.00 | 2.22 / 9.74 | 143.56 / 152.37 | 1 / 0 | 7.5% | 5.99 | 5.71GiB |
-| 2 | 100% | 0.122 | 7.78 | 15.82 / 25.44 | 3.34 / 10.80 | 157.81 / 306.25 | 2 / 0 | 13.4% | 5.96 | 5.71GiB |
+| 2 | 100% | 0.119 | 7.64 | 15.63 / 22.32 | 3.66 / 11.93 | 163.86 / 319.15 | 2 / 0 | 13.4% | 5.99 | 6.05GiB |
 | 5 | 100% | 0.176 | 11.28 | 27.29 / 38.92 | 15.27 / 27.90 | 179.08 / 422.60 | 5 / 0 | 32.8% | 5.55 | 5.76GiB |
 | 10 | 100% | 0.188 | 12.06 | 54.16 / 66.80 | 25.39 / 43.46 | 412.73 / 753.07 | 10 / 1 | 64.2% | 5.52 | 5.82GiB |
 | 20 | 100% | 0.211 | 13.50 | 89.30 / 131.17 | 35.70 / 70.41 | 857.63 / 1,040.10 | 16 / 11 | 100% | 5.46 | 5.83GiB |
@@ -77,6 +77,8 @@ make benchmark-analyze
 | 100 | 100% | 0.212 | 13.54 | 292.90 / 464.06 | 228.07 / 425.21 | 765.29 / 1,214.28 | 16 / 91 | 100% | 5.54 | 5.85GiB |
 
 서버 prompt/generation token counter 증가량은 모든 단계에서 각각 `29,791/6,400`이고 클라이언트 usage 합계와 정확히 일치했다. 전체 preemption은 2회, prefix hit는 0회, OOM kill과 Pod restart는 0회였다. 전체 수치와 p99는 [`summary.csv`](../benchmark/results/baseline/summary.csv), 실행 환경과 해시는 [`run-manifest.json`](../benchmark/results/baseline/run-manifest.json)에서 확인할 수 있다.
+
+초기 C=2 표본에는 host 중단으로 UTC wall clock과 monotonic timer 사이 5,365.15초의 차이가 있어 원시 데이터를 [`excluded/`](../benchmark/results/baseline/excluded/)에 보존하고 같은 100건으로 재측정했다. 위 표는 중단 없이 완료돼 두 timer의 차이가 0.05초 미만인 재측정값이다.
 
 ### 처리량과 지연시간
 
@@ -96,7 +98,7 @@ C=1에서 C=20으로 늘리면 output throughput은 `5.16 → 13.50 token/s`, �
 
 C=50/100의 TPOT p50이 C=20보다 조금 낮아진 사실만 보고 고동시성이 개선됐다고 판단하면 안 된다. 초과 요청은 first token 전에 기다리므로 대기 비용이 TPOT보다 TTFT에 집중된다. 실제로 C=100 TTFT p95는 425.21초이고 E2E p95도 크게 악화됐다.
 
-Peak memory는 최대 5.85GiB로 안정됐고 OOM/restart가 없었다. 그러므로 이 tail latency 악화는 메모리 장애가 아니라 CPU 포화, KV 포화, scheduler queue의 결과다.
+Peak memory는 최대 6.05GiB로 6.5GiB limit 안에서 안정됐고 OOM/restart가 없었다. 그러므로 이 tail latency 악화는 메모리 장애가 아니라 CPU 포화, KV 포화, scheduler queue의 결과다.
 
 ## 객관성의 한계
 

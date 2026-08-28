@@ -411,6 +411,11 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 
     experiment = manifest.get("config", {}).get("experiment", "baseline")
     if experiment != "baseline":
+        analysis_report = (
+            "reports/05_BASELINE_CPU8_ANALYSIS.md"
+            if experiment == "baseline-cpu8"
+            else "reports/04_OPTIMIZATION_FINAL_ANALYSIS.md"
+        )
         acceptance_values = [
             row["spec_acceptance_percent"]
             for row in rows
@@ -451,7 +456,7 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 - [Pod memory](charts/memory.svg)
 - [Source별 prompt tokens](charts/prompt-tokens-by-source.svg)
 
-이 문서는 해당 설정의 원시 요청과 1초 metric 시계열에서 자동 생성한 사실표다. baseline과의 before/after 및 개선·악화 원인은 [`reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`](../../../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에서 교차 분석한다.
+이 문서는 해당 설정의 원시 요청과 1초 metric 시계열에서 자동 생성한 사실표다. baseline과의 before/after 및 개선·악화 원인은 [`{analysis_report}`](../../../{analysis_report})에서 교차 분석한다.
 """
         (input_dir / "REPORT.md").write_text(report, encoding="utf-8")
         return

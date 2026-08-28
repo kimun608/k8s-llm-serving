@@ -189,6 +189,38 @@ make benchmark-compare RESULTS_ROOT="$rerun_root"
 
 `benchmark-compare`는 세 설정의 prompt SHA-256과 고정 config, phase별 100/100 성공, client/server token counter 일치를 먼저 검증합니다. 통과하면 [results/comparison/REPORT.md](results/comparison/REPORT.md), 비교 CSV와 10개 SVG 그래프를 생성합니다. 원인 분석과 적용 실패 후보는 [최종 최적화 리포트](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)를 봅니다.
 
+### CPU limit 하나만 바꾸는 A/B
+
+baseline의 container CPU limit만 6에서 8로 변경하는 별도 실험은 다음 순서로 실행합니다.
+
+```bash
+make deploy
+make benchmark-baseline
+
+make deploy-baseline-cpu8
+make smoke
+make benchmark-baseline-cpu8
+
+make benchmark-compare-cpu8
+```
+
+`benchmark-compare-cpu8`는 workload와 token counter뿐 아니라 rendered container 명세에서 CPU limit 외 필드가 동일한지, 정식 phase의 UTC wall clock과 monotonic timer가 1%/5초 이내로 일치하는지, metric scrape error가 없는지 검증합니다. 실측 표·그래프는 [results/comparison-cpu8/REPORT.md](results/comparison-cpu8/REPORT.md), 원인 분석은 [CPU 8 분석 리포트](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
+
+host sleep이나 실행 중단이 발견된 phase만 원시 자료를 보존한 뒤 다시 실행할 수 있습니다.
+
+```bash
+python3 benchmark/scripts/run_benchmark.py \
+  --config benchmark/config/baseline-cpu8.json \
+  --prompts benchmark/data/prompts.jsonl \
+  --output benchmark/results/baseline-cpu8 \
+  --resume \
+  --rerun-concurrencies 10 \
+  --rerun-reason "host suspension detected" \
+  --max-new-phases 1
+```
+
+교체 전 request JSONL, metric CSV, phase JSON과 제외 사유는 결과 폴더의 `excluded/` 아래에 자동 보존됩니다.
+
 ## 해석 원칙
 
 - throughput 증가가 멈추고 p95/p99 TTFT와 waiting이 동시에 증가하면 CPU 처리 용량의 포화로 판단합니다.

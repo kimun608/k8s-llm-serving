@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import math
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -77,6 +78,8 @@ def validate(variants: dict[str, tuple[list[dict], dict]]) -> list[int]:
     baseline_config = baseline_manifest["config"]
     baseline_prompt_hash = baseline_manifest["prompts_sha256"]
     for name, (rows, manifest) in variants.items():
+        if manifest.get("status") != "completed":
+            raise ValueError(f"Run {name} is not completed")
         current = [int(row["concurrency"]) for row in rows]
         if current != concurrencies:
             raise ValueError(f"Concurrency mismatch for {name}: {current} != {concurrencies}")
@@ -85,6 +88,9 @@ def validate(variants: dict[str, tuple[list[dict], dict]]) -> list[int]:
         for key in FIXED_CONFIG_KEYS:
             if manifest["config"].get(key) != baseline_config.get(key):
                 raise ValueError(f"Fixed config mismatch for {name}: {key}")
+        phases = {
+            int(phase["concurrency"]): phase for phase in manifest.get("phases", [])
+        }
         for row in rows:
             if int(row["requests"]) != 100 or int(row["successes"]) != 100:
                 raise ValueError(f"Incomplete phase for {name} C={row['concurrency']}")
@@ -92,6 +98,21 @@ def validate(variants: dict[str, tuple[list[dict], dict]]) -> list[int]:
                 raise ValueError(f"Prompt token mismatch for {name} C={row['concurrency']}")
             if int(finite(row["total_completion_tokens"])) != int(finite(row["server_generation_tokens_delta"])):
                 raise ValueError(f"Generation token mismatch for {name} C={row['concurrency']}")
+            phase = phases.get(int(row["concurrency"]))
+            if phase is None:
+                raise ValueError(f"Missing phase metadata for {name} C={row['concurrency']}")
+            wall_seconds = (
+                datetime.fromisoformat(phase["finished_at_utc"])
+                - datetime.fromisoformat(phase["started_at_utc"])
+            ).total_seconds()
+            timer_gap = abs(wall_seconds - finite(phase["duration_seconds"]))
+            if timer_gap > max(5.0, finite(phase["duration_seconds"]) * 0.01):
+                raise ValueError(
+                    f"Host interruption detected for {name} C={row['concurrency']}: "
+                    f"wall/timer gap={timer_gap:.2f}s"
+                )
+            if phase.get("metrics_scrape_errors"):
+                raise ValueError(f"Metric scrape failed for {name} C={row['concurrency']}")
     return concurrencies
 
 
@@ -214,6 +235,7 @@ def main() -> None:
 - 비교 요청: `{total_requests}`건, 실패 `{total_failures}`건
 - 세 설정의 prompt file SHA-256, 모델, 100건, 출력 64 tokens, 동시성, sampling, warmup/cooldown가 동일함
 - client/server prompt와 generation token counter가 모든 단계에서 일치함
+- 정식 phase의 UTC wall clock과 monotonic timer 오차가 1%/5초 이내이며 metric scrape error가 없음
 - 전체 OOM kill 증가량: `{total_oom:.0f}`
 
 ## 결과

@@ -5,6 +5,7 @@
 - 비교 요청: `2100`건, 실패 `0`건
 - 세 설정의 prompt file SHA-256, 모델, 100건, 출력 64 tokens, 동시성, sampling, warmup/cooldown가 동일함
 - client/server prompt와 generation token counter가 모든 단계에서 일치함
+- 정식 phase의 UTC wall clock과 monotonic timer 오차가 1%/5초 이내이며 metric scrape error가 없음
 - 전체 OOM kill 증가량: `0`
 
 ## 결과
@@ -12,7 +13,7 @@
 | C | Baseline / MTP / Combined output tok/s | Combined vs base | Baseline / Combined E2E p95 | Combined vs base | Base / MTP / Combined peak wait | Combined acceptance |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1 | 5.16 / 7.80 / 7.43 | +44.0% | 19.00s / 15.36s | -19.2% | 0 / 0 / 0 | 76.7% |
-| 2 | 7.78 / 9.99 / 10.01 | +28.7% | 25.44s / 19.25s | -24.3% | 0 / 0 / 0 | 76.1% |
+| 2 | 7.64 / 9.99 / 10.01 | +31.0% | 22.32s / 19.25s | -13.8% | 0 / 0 / 0 | 76.1% |
 | 5 | 11.28 / 11.87 / 11.40 | +1.1% | 38.92s / 37.73s | -3.1% | 0 / 0 / 0 | 74.8% |
 | 10 | 12.06 / 11.81 / 11.51 | -4.6% | 66.80s / 71.46s | +7.0% | 1 / 5 / 2 | 76.2% |
 | 20 | 13.50 / 11.78 / 11.84 | -12.3% | 131.17s / 127.53s | -2.8% | 11 / 15 / 12 | 75.9% |

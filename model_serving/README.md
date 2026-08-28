@@ -17,6 +17,7 @@ model_serving/
 │   │   └── kustomization.yaml
 │   └── overlays/
 │       ├── baseline/kustomization.yaml
+│       ├── baseline-cpu8/kustomization.yaml
 │       ├── mtp/kustomization.yaml
 │       ├── mtp-kv-tuned/kustomization.yaml
 │       └── candidates/              # 지원 여부 사전 검증용
@@ -46,7 +47,7 @@ Kind 설치와 노드 구성은 `../k8s/README.md`를 따릅니다.
 
 Qwen3.5-0.8B는 0.8B 규모, 약 1.63GiB BF16 checkpoint이며 checkpoint 자체에 native MTP layer가 있습니다. 따라서 베이스라인과 MTP 최적화 실험에서 target model을 바꾸지 않고 speculative decoding 설정만 변경할 수 있습니다. 공식 checkpoint는 멀티모달 구조이지만 과제 요청은 텍스트뿐이므로 vision 입력 경로를 끕니다. Docker VM 약 7.65GiB 안에서 실행하기 위해 Pod limit은 6.5GiB, KV cache는 512MiB로 제한했습니다. 모델을 이미지에 포함해 Pod 시작 시 외부 다운로드가 발생하지 않도록 했습니다.
 
-현재 베이스라인에는 speculative config를 넣지 않습니다. 후속 MTP overlay에서는 Qwen 공식 vLLM recipe와 동일하게 `--speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}'`를 추가할 계획입니다. 고정한 vLLM 0.26.0 이미지의 CLI가 `qwen3_next_mtp`를 허용하는 것까지 확인했으며, 실제 MTP 기동·부하 측정은 최적화 단계의 결과로 별도 기록합니다.
+현재 베이스라인에는 speculative config를 넣지 않습니다. MTP overlay는 Qwen 공식 vLLM recipe와 동일하게 `--speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}'`를 사용합니다. 실제 MTP 기동·부하 측정은 [최적화 분석 리포트](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 기록했습니다.
 
 ## 1. 환경 점검
 
@@ -131,6 +132,25 @@ make status
 | Image policy | `Never`, Kind에 로드된 이미지 전용 |
 
 Deployment의 nodeSelector가 worker role을 요구하므로 Pod는 control-plane이 아니라 `project-process-worker`에서 실행됩니다.
+
+### CPU limit 8 단일 변경 배포
+
+`baseline-cpu8` overlay는 위 baseline에서 container CPU limit만 `6 → 8`로 교체합니다. 모델, args, CPU request, memory, KV와 scheduler 설정은 바꾸지 않습니다.
+
+```bash
+make deploy-baseline-cpu8
+make smoke
+```
+
+실제 Pod에서 다음 값으로 확인할 수 있습니다.
+
+```bash
+kubectl -n llm-serving get deployment vllm-cpu \
+  -o jsonpath='{.spec.template.spec.containers[0].resources}{"\n"}'
+kubectl -n llm-serving exec deployment/vllm-cpu -- cat /sys/fs/cgroup/cpu.max
+```
+
+예상 CPU limit은 `8`, cgroup 값은 `800000 100000`입니다. 동일 700건 A/B 절차와 결과는 [CPU limit 실험 README](../optimization/cpu8/README.md)와 [분석 리포트](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
 
 ## 6. 실제 추론 검증
 
