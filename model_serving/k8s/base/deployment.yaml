@@ -18,6 +18,7 @@ spec:
       labels:
         app.kubernetes.io/name: vllm-cpu
         app.kubernetes.io/component: inference-server
+        serving-variant: baseline
     spec:
       # Prevent Kubernetes Service variables such as VLLM_CPU_SERVICE_HOST
       # from being mistaken for vLLM's own VLLM_CPU_* configuration.

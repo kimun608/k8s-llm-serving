@@ -11,7 +11,7 @@ patches:
       kind: Deployment
       name: vllm-cpu
     patch: |-
-      - op: add
+      - op: replace
         path: /spec/template/metadata/labels/serving-variant
         value: mtp
       - op: add

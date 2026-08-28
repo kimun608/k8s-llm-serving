@@ -16,7 +16,7 @@ project_process/
 │   │   └── overlays/baseline/
 │   └── scripts/
 ├── benchmark/                   # 공개 데이터셋 기반 100-request 부하 측정
-├── optimization/                # MTP·KV 및 CPU limit 단일 변경 실험
+├── optimization/                # CPU limit·MTP·KV/maxseq 분리 실험
 ├── results/                     # 실제 실행 결과
 ├── reports/                     # 통합 분석 문서
 └── Makefile                     # 전체 실행 진입점
@@ -28,11 +28,14 @@ project_process/
 2. [vLLM 모델 이미지 빌드·K8s 배포](model_serving/README.md)
 3. [100-request 베이스라인 벤치마크](benchmark/README.md)
 4. [베이스라인 실측 분석 리포트](reports/02_BASELINE_BENCHMARK.md)
-5. [MTP·KV 최적화 적용 및 재측정 계획](optimization/README.md)
+5. [MTP·capacity bundle 최적화 적용 및 재측정](optimization/README.md)
 6. [실패 기록: Apple M4에서 FP8 KV cache](reports/03_FAILED_OPTIMIZATION_FP8_KV.md)
 7. [최적화 before/after 최종 분석](reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)
 8. [단일 변경 검증: CPU limit 6 → 8](reports/05_BASELINE_CPU8_ANALYSIS.md)
-9. [CPU 8 고정: Baseline vs MTP vs MTP+KV 분석](reports/06_CPU8_MTP_KV_ANALYSIS.md)
+9. [CPU 8 고정: Baseline vs MTP vs capacity bundle 분석](reports/06_CPU8_MTP_KV_ANALYSIS.md)
+10. [CPU8 KV×max-num-seqs 2×2 분리 실험](optimization/cpu8-factorial/README.md)
+11. [전체 8개 variant 종합 비교](benchmark/results/comparison-all/REPORT.md)
+12. [최종 종합 분석 리포트](reports/07_FINAL_COMPREHENSIVE_ANALYSIS.md)
 
 ## master와 worker의 관계
 
@@ -72,4 +75,26 @@ make smoke
 
 새 환경에서는 `make all`로 smoke test 직전까지 한 번에 실행할 수 있습니다. 현재 클러스터를 제거하려면 `make clean-cluster`를 사용합니다. 이 명령은 로컬 모델 이미지는 제거하지 않습니다.
 
-컨테이너·클러스터·배포 결과는 [1단계 리포트](reports/01_CONTAINER_CLUSTER_DEPLOYMENT.md), 700건 부하 측정 결과는 [베이스라인 리포트](reports/02_BASELINE_BENCHMARK.md)에 기록돼 있습니다. CPU6의 MTP·KV 총 2,100건 비교는 [최종 분석 리포트](reports/04_OPTIMIZATION_FINAL_ANALYSIS.md), CPU limit만 `6 → 8`로 바꾼 700건 A/B는 [CPU 8 분석 리포트](reports/05_BASELINE_CPU8_ANALYSIS.md), CPU8에서 baseline·MTP·MTP+KV를 다시 비교한 2,100건은 [CPU8 최적화 분석](reports/06_CPU8_MTP_KV_ANALYSIS.md)에 정리했습니다. 재분석 가능한 원시는 [benchmark/results](benchmark/results/)에 함께 보관합니다.
+완료된 CPU8 2×2 단일 변수 실험을 재현하고, 저장소의 8개 결과를 다시 검증하려면 다음 진입점을 사용합니다. 각 benchmark target은 동시성 7단계별 100건, 총 700건을 실행합니다.
+
+```bash
+rerun_root="$(mktemp -d /tmp/k8s-llm-results.XXXXXX)"
+
+make deploy-mtp-kv768-cpu8
+make smoke
+make benchmark-mtp-kv768-cpu8 RESULTS_ROOT="$rerun_root"
+
+make deploy-mtp-seq24-cpu8
+make smoke
+make benchmark-mtp-seq24-cpu8 RESULTS_ROOT="$rerun_root"
+
+# 아래 명령은 저장소에 보존한 8개 완료 결과를 검증한다.
+make benchmark-compare-all
+make validate-docs
+```
+
+제출용 결과를 보존하는 `RESULTS_ROOT` 사용법과 전체 8개 variant가 필요한 비교 조건은 [benchmark 실행 문서](benchmark/README.md)에 설명돼 있습니다.
+
+컨테이너·클러스터·배포 결과는 [1단계 리포트](reports/01_CONTAINER_CLUSTER_DEPLOYMENT.md), 최초 700건 부하 측정은 [베이스라인 리포트](reports/02_BASELINE_BENCHMARK.md)에 기록돼 있습니다. CPU6/CPU8 baseline·MTP·capacity bundle과 CPU8의 KV-only·maxseq-only까지 총 8개 variant를 동시성별 100건씩 측정해 `5,600/5,600`건이 성공했습니다. 전체 factor와 수치는 [comparison-all](benchmark/results/comparison-all/REPORT.md), 원시는 [benchmark/results](benchmark/results/)에 보관합니다.
+
+기존 `mtp-kv-tuned*`는 재현성을 위해 이름을 유지한 legacy artifact ID이며, 실제로는 KV `512→768MiB`와 `max-num-seqs` `20→24`를 함께 바꾼 capacity bundle입니다. 분리 실험에서 KV-only는 C≥10의 peak running 최대값을 `5→8`, peak waiting 최대값을 3건 줄였지만 C=10·20 throughput은 `-10.2%`, `-10.4%`였습니다. Maxseq-only는 peak running/peak waiting을 바꾸지 않았고 C=5∼100 throughput도 `-0.4∼-5.4%`로 개선되지 않았습니다. 따라서 지속적인 C≥10의 보수적 기본값은 `baseline-cpu8`, 저동시성 후보는 `mtp-cpu8`이며 capacity를 키운 두 설정은 속도 최적화로 채택하지 않습니다.

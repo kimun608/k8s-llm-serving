@@ -189,7 +189,7 @@ def parse_prometheus(text: str) -> dict[str, float]:
     return {name: (values[name] if name in present else math.nan) for name in PROMETHEUS_METRICS}
 
 
-def read_cgroup(namespace: str) -> dict[str, float]:
+def read_cgroup(namespace: str) -> tuple[dict[str, float], str | None]:
     command = [
         "kubectl",
         "-n",
@@ -204,13 +204,16 @@ def read_cgroup(namespace: str) -> dict[str, float]:
     output = run_text(command, timeout=10)
     result = {
         "pod_cpu_usage_usec": math.nan,
+        "pod_cpu_nr_periods": math.nan,
+        "pod_cpu_nr_throttled": math.nan,
+        "pod_cpu_throttled_usec": math.nan,
         "pod_memory_current_bytes": math.nan,
         "pod_memory_events_max": math.nan,
         "pod_memory_events_oom": math.nan,
         "pod_memory_events_oom_kill": math.nan,
     }
     if not output:
-        return result
+        return result, "cgroup: kubectl exec failed or returned no data"
     memory_value_seen = False
     for line in output.splitlines():
         parts = line.split()
@@ -219,13 +222,28 @@ def read_cgroup(namespace: str) -> dict[str, float]:
             memory_value_seen = True
         elif len(parts) == 2 and parts[0] == "usage_usec":
             result["pod_cpu_usage_usec"] = float(parts[1])
+        elif len(parts) == 2 and parts[0] == "nr_periods":
+            result["pod_cpu_nr_periods"] = float(parts[1])
+        elif len(parts) == 2 and parts[0] == "nr_throttled":
+            result["pod_cpu_nr_throttled"] = float(parts[1])
+        elif len(parts) == 2 and parts[0] == "throttled_usec":
+            result["pod_cpu_throttled_usec"] = float(parts[1])
         elif len(parts) == 2 and parts[0] == "max":
             result["pod_memory_events_max"] = float(parts[1])
         elif len(parts) == 2 and parts[0] == "oom":
             result["pod_memory_events_oom"] = float(parts[1])
         elif len(parts) == 2 and parts[0] == "oom_kill":
             result["pod_memory_events_oom_kill"] = float(parts[1])
-    return result
+    required = (
+        "pod_cpu_usage_usec",
+        "pod_cpu_nr_periods",
+        "pod_cpu_nr_throttled",
+        "pod_cpu_throttled_usec",
+        "pod_memory_current_bytes",
+    )
+    if any(not math.isfinite(result[name]) for name in required):
+        return result, "cgroup: required cpu.stat or memory.current field is missing"
+    return result, None
 
 
 class MetricsSampler:
@@ -252,11 +270,17 @@ class MetricsSampler:
             sample.update({name: math.nan for name in PROMETHEUS_METRICS})
             self.errors.append(f"prometheus: {type(error).__name__}: {error}")
         if self.collect_cgroup:
-            sample.update(read_cgroup(self.namespace))
+            cgroup_values, cgroup_error = read_cgroup(self.namespace)
+            sample.update(cgroup_values)
+            if cgroup_error and cgroup_error not in self.errors:
+                self.errors.append(cgroup_error)
         else:
             sample.update(
                 {
                     "pod_cpu_usage_usec": math.nan,
+                    "pod_cpu_nr_periods": math.nan,
+                    "pod_cpu_nr_throttled": math.nan,
+                    "pod_cpu_throttled_usec": math.nan,
                     "pod_memory_current_bytes": math.nan,
                     "pod_memory_events_max": math.nan,
                     "pod_memory_events_oom": math.nan,
@@ -279,7 +303,11 @@ class MetricsSampler:
     def stop(self) -> None:
         self.stop_event.set()
         if self.thread is not None:
-            self.thread.join(timeout=max(10, self.interval * 3))
+            # A scrape can spend up to 5s on HTTP and 10s on kubectl. Do not
+            # start the final sample while that background sample is alive.
+            self.thread.join(timeout=max(20, self.interval * 3))
+            if self.thread.is_alive():
+                raise RuntimeError("Metrics sampler did not stop within 20 seconds")
         self.sample()
 
 
@@ -461,6 +489,9 @@ def write_metrics_csv(path: Path, rows: list[dict]) -> None:
         "elapsed_seconds",
         *PROMETHEUS_METRICS,
         "pod_cpu_usage_usec",
+        "pod_cpu_nr_periods",
+        "pod_cpu_nr_throttled",
+        "pod_cpu_throttled_usec",
         "pod_memory_current_bytes",
         "pod_memory_events_max",
         "pod_memory_events_oom",
@@ -472,9 +503,7 @@ def write_metrics_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def system_metadata(namespace: str) -> dict[str, Any]:
-    docker_info = run_json(["docker", "info", "--format", "{{json .}}"])
-    deployment = run_json(["kubectl", "-n", namespace, "get", "deployment", "vllm-cpu", "-o", "json"])
+def pod_metadata(namespace: str) -> list[dict[str, Any]] | None:
     pods = run_json(
         [
             "kubectl",
@@ -488,14 +517,12 @@ def system_metadata(namespace: str) -> dict[str, Any]:
             "json",
         ]
     )
-    nodes = run_json(["kubectl", "get", "nodes", "-o", "json"])
-    container = None
-    if deployment:
-        container = deployment["spec"]["template"]["spec"]["containers"][0]
-    pod_items = []
-    for pod in (pods or {}).get("items", []):
+    if pods is None:
+        return None
+    result = []
+    for pod in pods.get("items", []):
         statuses = pod.get("status", {}).get("containerStatuses", [])
-        pod_items.append(
+        result.append(
             {
                 "name": pod["metadata"]["name"],
                 "uid": pod["metadata"]["uid"],
@@ -505,6 +532,41 @@ def system_metadata(namespace: str) -> dict[str, Any]:
                 "image_id": statuses[0].get("imageID") if statuses else None,
             }
         )
+    return sorted(result, key=lambda item: str(item["name"]))
+
+
+def pod_runtime_errors(
+    expected: list[dict[str, Any]] | None,
+    observed: list[dict[str, Any]] | None,
+) -> list[str]:
+    if expected is None or observed is None:
+        return ["Unable to capture Kubernetes Pod runtime state"]
+    if not expected or not observed:
+        return ["Expected one running vLLM Pod, but the Pod snapshot was empty"]
+    expected_identity = [(item.get("uid"), item.get("image_id")) for item in expected]
+    observed_identity = [(item.get("uid"), item.get("image_id")) for item in observed]
+    errors = []
+    if observed_identity != expected_identity:
+        errors.append("Pod UID or container image ID changed during the benchmark")
+    if any(int(item.get("restart_count", -1)) != 0 for item in observed):
+        errors.append("A vLLM container restart was observed during the benchmark")
+    if any(item.get("phase") != "Running" for item in observed):
+        errors.append("The vLLM Pod was not Running at the end of the phase")
+    return errors
+
+
+def system_metadata(namespace: str, *, include_kubernetes: bool = True) -> dict[str, Any]:
+    docker_info = run_json(["docker", "info", "--format", "{{json .}}"])
+    deployment = (
+        run_json(["kubectl", "-n", namespace, "get", "deployment", "vllm-cpu", "-o", "json"])
+        if include_kubernetes
+        else None
+    )
+    pods = pod_metadata(namespace) if include_kubernetes else None
+    nodes = run_json(["kubectl", "get", "nodes", "-o", "json"]) if include_kubernetes else None
+    container = None
+    if deployment:
+        container = deployment["spec"]["template"]["spec"]["containers"][0]
     node_items = []
     for node in (nodes or {}).get("items", []):
         node_items.append(
@@ -536,10 +598,22 @@ def system_metadata(namespace: str) -> dict[str, Any]:
             if docker_info
             else None
         ),
-        "kubernetes": {
+        "serving_metadata_scope": (
+            "local-kubernetes" if include_kubernetes else "benchmark-client-only"
+        ),
+        "kubernetes": ({
             "nodes": node_items,
-            "pods": pod_items,
+            "pods": pods,
             "deployment_generation": deployment["metadata"].get("generation") if deployment else None,
+            "serving_variant": (
+                deployment.get("spec", {})
+                .get("template", {})
+                .get("metadata", {})
+                .get("labels", {})
+                .get("serving-variant")
+                if deployment
+                else None
+            ),
             "container": (
                 {
                     "image": container.get("image"),
@@ -550,12 +624,38 @@ def system_metadata(namespace: str) -> dict[str, Any]:
                 if container
                 else None
             ),
-        },
+        } if include_kubernetes else None),
         "git": {
             "commit": run_text(["git", "rev-parse", "HEAD"]),
             "status_porcelain": run_text(["git", "status", "--porcelain"]),
         },
     }
+
+
+def validate_deployed_variant(namespace: str, expected_variant: str) -> None:
+    """Fail before creating artifacts when the local Deployment is not the target."""
+    deployment = run_json(
+        ["kubectl", "-n", namespace, "get", "deployment", "vllm-cpu", "-o", "json"]
+    )
+    if not deployment:
+        raise RuntimeError("Cannot validate the local vllm-cpu Deployment")
+    deployed_variant = (
+        deployment.get("spec", {})
+        .get("template", {})
+        .get("metadata", {})
+        .get("labels", {})
+        .get("serving-variant")
+    )
+    if not deployed_variant:
+        raise RuntimeError(
+            "Refusing to benchmark an unlabeled deployment; redeploy it with the "
+            f"{expected_variant!r} overlay first"
+        )
+    if deployed_variant != expected_variant:
+        raise RuntimeError(
+            "Refusing to benchmark the wrong deployment: "
+            f"config experiment={expected_variant!r}, serving-variant={deployed_variant!r}"
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -564,7 +664,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=root / "config" / "baseline.json")
     parser.add_argument("--prompts", type=Path, default=root / "data" / "prompts.jsonl")
     parser.add_argument("--output", type=Path, default=root / "results" / "baseline")
-    parser.add_argument("--base-url", help="Use an existing reachable endpoint; otherwise manage port-forward")
+    parser.add_argument(
+        "--base-url",
+        help=(
+            "Use an explicit endpoint without local Kubernetes provenance or cgroup collection; "
+            "such results are excluded from the formal local-K8s comparison"
+        ),
+    )
+    parser.add_argument(
+        "--skip-deployment-variant-check",
+        action="store_true",
+        help="Allow a short functional check against any deployed variant",
+    )
     parser.add_argument("--concurrencies", nargs="+", type=int)
     parser.add_argument("--limit", type=int, help="Run only the first N prompts for a quick functional check")
     parser.add_argument("--no-cgroup", action="store_true", help="Skip kubectl cgroup collection")
@@ -608,7 +719,14 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
     concurrencies = args.concurrencies or [int(value) for value in config["concurrencies"]]
     config_sha256 = sha256_file(args.config)
     prompts_sha256 = sha256_file(args.prompts)
-    current_environment = system_metadata(config["namespace"])
+    current_environment = system_metadata(
+        config["namespace"], include_kubernetes=not bool(args.base_url)
+    )
+    if not args.base_url:
+        initial_pods = current_environment.get("kubernetes", {}).get("pods")
+        initial_runtime_errors = pod_runtime_errors(initial_pods, initial_pods)
+        if initial_runtime_errors:
+            raise RuntimeError("; ".join(initial_runtime_errors))
     input_validation = {
         "minimum": min(token_values),
         "maximum": max(token_values),
@@ -625,6 +743,9 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             "concurrencies": concurrencies,
             "input_token_validation": input_validation,
             "server_version": server_version,
+            "endpoint_binding": (
+                "explicit-base-url" if args.base_url else "local-kubernetes-service"
+            ),
         }
         for key, expected_value in expected_values.items():
             if manifest.get(key) != expected_value:
@@ -632,10 +753,16 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
         if model_signature(manifest.get("model_endpoint")) != model_signature(model_info):
             raise RuntimeError("Cannot resume: served model identity or max context length changed")
 
-        previous_container = manifest.get("environment", {}).get("kubernetes", {}).get("container")
-        current_container = current_environment.get("kubernetes", {}).get("container")
-        if previous_container != current_container:
-            raise RuntimeError("Cannot resume: deployed container image, args, resources, or env changed")
+        if args.base_url and manifest.get("base_url") != base_url:
+            raise RuntimeError("Cannot resume: explicit --base-url changed")
+
+        if not args.base_url:
+            previous_container = manifest.get("environment", {}).get("kubernetes", {}).get("container")
+            current_container = current_environment.get("kubernetes", {}).get("container")
+            if previous_container != current_container:
+                raise RuntimeError(
+                    "Cannot resume: deployed container image, args, resources, or env changed"
+                )
 
         completed: set[int] = set()
         for phase in manifest.get("phases", []):
@@ -713,6 +840,9 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             "started_at_utc": utc_now(),
             "finished_at_utc": None,
             "base_url": base_url,
+            "endpoint_binding": (
+                "explicit-base-url" if args.base_url else "local-kubernetes-service"
+            ),
             "config": config,
             "config_sha256": config_sha256,
             "prompts_file": str(args.prompts),
@@ -723,6 +853,7 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             "model_endpoint": model_info,
             "server_version": server_version,
             "environment": current_environment,
+            "runner_sha256": sha256_file(Path(__file__).resolve()),
             "phases": [],
         }
     write_json(manifest_path, manifest)
@@ -759,7 +890,7 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             base_url,
             config["namespace"],
             float(config["metrics_interval_seconds"]),
-            not args.no_cgroup,
+            not args.no_cgroup and not bool(args.base_url),
         )
         print(f"[concurrency={concurrency}] running {len(prompts)} measured requests", flush=True)
         sampler.start()
@@ -806,13 +937,32 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             "warmup_results": warmup_results,
             "metrics_sample_count": len(sampler.samples),
             "metrics_scrape_errors": sampler.errors,
+            "kubernetes_pods_after": (
+                pod_metadata(config["namespace"]) if not args.base_url else None
+            ),
             "requests_file": str(requests_file.relative_to(args.output)),
             "metrics_file": str(metrics_file.relative_to(args.output)),
         }
+        if not args.base_url:
+            expected_pods = (
+                manifest.get("environment", {}).get("kubernetes", {}).get("pods")
+            )
+            phase["runtime_validation_errors"] = pod_runtime_errors(
+                expected_pods, phase["kubernetes_pods_after"]
+            )
+        else:
+            phase["runtime_validation_errors"] = []
         write_json(phase_file, phase)
         manifest["phases"].append(phase)
         manifest["phases"].sort(key=lambda saved: int(saved["concurrency"]))
         write_json(manifest_path, manifest)
+        if phase["runtime_validation_errors"]:
+            manifest["status"] = "runtime_validation_failed"
+            manifest["finished_at_utc"] = utc_now()
+            write_json(manifest_path, manifest)
+            raise RuntimeError(
+                "; ".join(str(error) for error in phase["runtime_validation_errors"])
+            )
         print(
             f"[concurrency={concurrency}] completed in {duration:.2f}s; "
             f"success={len(results) - failed}/{len(results)}",
@@ -860,6 +1010,8 @@ def main() -> int:
         raise ValueError("All --rerun-concurrencies values must be positive")
     if args.rerun_reason and not args.rerun_concurrencies:
         raise ValueError("--rerun-reason requires --rerun-concurrencies")
+    if not args.base_url and not args.skip_deployment_variant_check:
+        validate_deployed_variant(config["namespace"], config["experiment"])
     if args.output.exists() and any(args.output.iterdir()) and not args.resume:
         raise RuntimeError(f"Output directory is not empty: {args.output}")
     args.output.mkdir(parents=True, exist_ok=True)

@@ -12,5 +12,8 @@ patches:
       name: vllm-cpu
     patch: |-
       - op: replace
+        path: /spec/template/metadata/labels/serving-variant
+        value: baseline-cpu8
+      - op: replace
         path: /spec/template/spec/containers/0/resources/limits/cpu
         value: "8"

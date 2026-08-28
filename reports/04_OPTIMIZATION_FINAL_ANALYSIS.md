@@ -1,14 +1,16 @@
 # 4. CPU vLLM 최적화 적용 및 최종 분석
 
+> 이 문서는 CPU6의 역사적 세 설정 분석이다. CPU8과 KV/max-seqs 분리 실험까지 포함한 과제 최종 결론은 [최종 종합 분석](07_FINAL_COMPREHENSIVE_ANALYSIS.md)을 따른다.
+
 ## 결론
 
-Qwen3.5-0.8B의 native MTP와 KV/scheduler capacity 조정을 실제 Kind worker에 적용하고, baseline과 완전히 같은 100개 prompt를 동시성 `1, 2, 5, 10, 20, 50, 100`에서 각각 실행했다. 정식 비교는 설정당 700건, 총 2,100건이며 전부 성공했다. 모든 phase에서 client/server prompt·generation token 수가 일치했고 OOM kill과 prefix cache hit는 0이었다.
+Qwen3.5-0.8B의 native MTP와 capacity bundle(KV budget + scheduler 상한)을 실제 Kind worker에 적용하고, baseline과 완전히 같은 100개 prompt를 동시성 `1, 2, 5, 10, 20, 50, 100`에서 각각 실행했다. 정식 비교는 설정당 700건, 총 2,100건이며 전부 성공했다. 모든 phase에서 client/server prompt·generation token 수가 일치했고 OOM kill과 prefix cache hit는 0이었다.
 
 결과는 부하 영역에 따라 갈렸다.
 
 - MTP2는 C=1과 2에서 output throughput을 각각 51.1%, 30.7% 높였다. C=1 TPOT p95도 40.3% 줄었다.
 - C=20 이상에서는 MTP가 차지하는 KV/cache 및 verification 비용 때문에 baseline 대비 output throughput이 8.6~12.7% 낮았다.
-- KV를 512MiB에서 768MiB로 늘리면 MTP 환경의 peak running이 5에서 8로 증가하고 peak waiting은 3개씩 줄었다. 그러나 같은 6-core CPU에서 더 큰 active batch를 실행해 MTP 단독 대비 TPOT p95가 C=10~100에서 46.8~76.7% 악화됐다.
+- 두 번째 설정 묶음은 KV byte 예산을 `512→768MiB`, `--max-num-seqs`를 `20→24`로 동시에 바꿨다. 이 묶음을 적용한 실행에서 peak running이 5에서 8로 증가하고 peak waiting은 3개씩 줄었지만, 같은 6-core CPU에서 더 큰 active batch를 실행해 MTP 단독 대비 TPOT p95가 C=10~100에서 46.8~76.7% 악화됐다.
 - 두 최적화를 결합한 설정은 baseline 대비 C=1·2에서 유리하지만 C=10·20·50·100의 output throughput은 4.6~12.3% 낮다. 따라서 이 장비에서는 결합 설정을 모든 부하의 단일 정답으로 채택할 수 없다.
 - 운영 선택은 저동시성·interactive 요청에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 타당하다. 768MiB KV/24 sequences 설정은 waiting을 조금 줄였지만 6-core 환경의 기본값으로는 권장하지 않는다.
 
@@ -48,11 +50,11 @@ baseline의 초기 C=2 표본에는 host 중단이 있어 원시 자료를 보�
 |---|---|---|---:|
 | `baseline` | off | 512MiB / 20 | 19,894 tokens |
 | `mtp` | `qwen3_next_mtp`, 2 tokens | 512MiB / 20 | 9,137 tokens |
-| `mtp-kv-tuned` | 위와 동일 | 768MiB / 24 | 13,705 tokens |
+| `mtp-kv-tuned` (legacy artifact ID) | 위와 동일 | 768MiB / 24 | 13,705 tokens |
 
 첫 번째 최적화는 Qwen 공식 recipe에 맞춘 native MTP다. 사용자가 처음 제안한 generic `method=mtp`, 5 tokens도 실제로 기동·pilot 측정했지만 draft acceptance가 약 48%이고 C=20 output throughput이 9.01 token/s에 그쳐, acceptance 약 67~72%인 model-specific MTP2를 정식 설정으로 선택했다.
 
-두 번째 최적화는 BF16 KV byte 예산과 scheduler sequence limit의 동시 조정이다. 처음 후보였던 FP8 KV는 현재 Apple M4/ARM64 CPU kernel에서 지원되지 않아 server가 초기화되지 않았다. 이 실패는 [03_FAILED_OPTIMIZATION_FP8_KV.md](03_FAILED_OPTIMIZATION_FP8_KV.md)에 예외 원문과 복구 절차까지 별도로 기록했다.
+두 번째 최적화는 BF16 KV byte 예산 `512→768MiB`와 scheduler sequence limit `20→24`를 동시에 조정한 **capacity bundle**이다. `mtp-kv-tuned`는 이미 결과 경로와 Make target에 사용된 legacy artifact ID이므로 유지하지만, KV-only 실험을 뜻하지 않는다. 기존 `max-num-seqs=20`보다 실제 peak running 5·8이 모두 작아 sequence 상한은 관측된 실행 폭의 직접 병목이 아니었다. 따라서 KV byte 증가가 주된 요인일 가능성은 높지만, 두 변수를 함께 바꾼 이번 결과만으로 각각의 독립 인과효과를 확정하지 않는다. 처음 후보였던 FP8 KV는 현재 Apple M4/ARM64 CPU kernel에서 지원되지 않아 server가 초기화되지 않았다. 이 실패는 [03_FAILED_OPTIMIZATION_FP8_KV.md](03_FAILED_OPTIMIZATION_FP8_KV.md)에 예외 원문과 복구 절차까지 별도로 기록했다.
 
 ## 지표를 선택한 이유
 
@@ -71,7 +73,7 @@ baseline의 초기 C=2 표본에는 host 중단이 있어 원시 자료를 보�
 
 ## Before/after 실측
 
-아래 `Combined`는 MTP2와 768MiB KV/24 sequences를 모두 적용한 결과다. `↓`가 항상 좋은 것은 아니므로 변화율은 metric 의미에 따라 읽어야 한다. throughput은 증가가 좋고 latency는 감소가 좋다.
+아래 `Bundle`은 MTP2에 capacity bundle(KV 768MiB, `max-num-seqs=24`)을 적용한 결과다. `↓`가 항상 좋은 것은 아니므로 변화율은 metric 의미에 따라 읽어야 한다. throughput은 증가가 좋고 latency는 감소가 좋다.
 
 | C | Output tok/s baseline → combined | 변화 | E2E p95 변화 | TTFT p95 변화 | TPOT p95 변화 | Peak run/wait baseline → combined |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -89,11 +91,11 @@ baseline의 초기 C=2 표본에는 host 중단이 있어 원시 자료를 보�
 
 ### C=1~2: MTP decode 이득
 
-동시에 실행하는 sequence가 적을 때 baseline은 CPU memory-bound decode를 한 token씩 반복한다. MTP2는 acceptance 약 76%로 다음 token 두 개 중 상당수를 한 번의 target verification에서 수용했다. 그 결과 C=1 output throughput은 51.1%, C=2는 30.7% 증가했다. KV 증설은 이 영역에서 사용되지 않으므로 결합 설정은 MTP 단독 대비 C=1 처리량이 4.7% 낮고 C=2는 0.2% 높은 정도였다. 이 차이는 설정 이득보다는 단일 반복의 host background load와 thermal 변동 범위로 보는 것이 안전하다.
+동시에 실행하는 sequence가 적을 때 baseline은 CPU memory-bound decode를 한 token씩 반복한다. MTP2는 acceptance 약 76%로 다음 token 두 개 중 상당수를 한 번의 target verification에서 수용했다. 그 결과 C=1 output throughput은 51.1%, C=2는 30.7% 증가했다. C=1·2에서는 추가 KV 용량과 더 높은 sequence 상한이 모두 사용되지 않으므로 결합 설정은 MTP 단독 대비 C=1 처리량이 4.7% 낮고 C=2는 0.2% 높은 정도였다. 이 차이는 capacity bundle의 인과효과가 아니라 단일 반복의 host background load와 thermal 변동 범위로 보는 것이 안전하다.
 
 ### C=5~10: MTP용 KV capacity와 CPU batch 경쟁이 교차
 
-MTP는 draft state까지 저장해 같은 512MiB에서 KV capacity가 baseline의 19,894에서 9,137 tokens로 줄었다. MTP 단독은 C=5부터 peak KV 91.2%, C=10부터 peak running 5와 waiting 5를 기록했다. 768MiB로 늘리면 peak running이 8로 늘고 C=10 waiting은 5에서 2로 줄어 TTFT p95는 MTP 단독 대비 33.1% 개선됐다.
+MTP는 draft state까지 저장해 같은 512MiB에서 KV capacity가 baseline의 19,894에서 9,137 tokens로 줄었다. MTP 단독은 C=5부터 peak KV 91.2%, C=10부터 peak running 5와 waiting 5를 기록했다. capacity bundle 실행에서는 peak running 8, C=10 waiting 2가 관측됐고 TTFT p95가 MTP 단독 대비 33.1% 낮았다. 다만 KV 예산과 sequence 상한을 함께 바꿨으므로 이 관측 차이를 어느 한 설정의 단독 효과로 분해하지 않는다. 실제 running이 기존 상한 20에도 못 미쳤다는 점에서는 KV 예산 증가가 실행 폭 변화의 주된 설명이다.
 
 하지만 8개 active sequence가 6 CPU cores를 나누고 MTP draft/verification까지 수행하면서 C=10 TPOT p95는 MTP 단독보다 76.7% 나빠졌다. 결과적으로 E2E p95는 12.9%, output throughput은 2.6% 악화됐다. 즉 queue 일부를 실행 단계로 옮겼을 뿐 총 compute capacity가 늘지는 않았다.
 
@@ -103,7 +105,7 @@ baseline은 peak running 16인 반면 MTP 단독은 5, 결합 설정은 8이었�
 
 MTP의 고동시성 TPOT p95가 baseline보다 낮은데 총 처리량도 낮은 것은 모순이 아니다. MTP 단독은 동시에 5개만 decode하므로 실행 중인 개별 요청은 더 빠르게 token을 받지만 더 많은 요청이 first token 전에 queue에서 기다린다. 그 결과 C=50·100 TTFT p95와 E2E p95가 baseline보다 악화됐다. 결합 설정은 running 8로 늘어 MTP 단독보다 queue를 줄였지만, 개별 TPOT를 다시 악화시키는 trade-off가 나타났다.
 
-평균 Pod CPU는 세 설정 모두 대부분 5.9~6.0 cores로 limit에 포화됐다. KV를 늘려도 CPU가 늘지 않으므로 고동시성 총 처리량 개선 폭이 작았던 근본 이유다. MTP acceptance는 KV 증설 전후 약 75~77%로 안정적이어서, 결합 설정의 악화는 acceptance 하락이 아니라 active batch/CPU 경쟁 때문이다.
+평균 Pod CPU는 세 설정 모두 대부분 5.9~6.0 cores로 limit에 포화됐다. capacity bundle이 실행 폭을 늘려도 CPU quota는 늘지 않으므로 고동시성 총 처리량 개선 폭이 작았던 근본 이유다. MTP acceptance는 bundle 적용 전후 약 75~77%로 안정적이어서, 결합 설정의 악화는 acceptance 하락이 아니라 active batch/CPU 경쟁과 함께 나타났다.
 
 ### 메모리와 안정성
 
@@ -131,9 +133,9 @@ NotImplementedError: FP8 KV cache on CPU requires x86 with AVX-512 or AMX.
 
 모델에는 MTP layer가 1개뿐이라 5-token proposal은 같은 layer를 반복 사용한다. pilot acceptance는 약 48%로 MTP2보다 18~23%p 낮았고, C=20 output throughput도 9.01 token/s였다. “더 많이 예측하면 더 빠르다”는 가설이 낮은 acceptance와 더 작은 KV capacity 때문에 성립하지 않았다.
 
-### KV 768MiB / 24 sequences: 부분 효과, 전체 기본값으로는 실패
+### Capacity bundle(KV 768MiB / 24 sequences): 부분 효과, 전체 기본값으로는 실패
 
-pilot 20건에서는 MTP 단독 대비 output throughput이 17.3% 개선됐지만 정식 100건 C=20에서는 0.5%에 그쳤다. 정식 C=10에서는 오히려 2.6% 악화됐다. prompt 길이 전체 분포와 지속 시간이 포함되자 더 큰 active batch의 CPU 경쟁이 드러난 것이다. 짧은 pilot은 기능 검증과 후보 제거에는 유용하지만 성능 결론으로 사용하면 안 된다.
+pilot 20건의 bundle 실행은 MTP 단독보다 output throughput이 17.3% 높았지만 정식 100건 C=20에서는 관측 차이가 0.5%에 그쳤다. 정식 C=10에서는 오히려 2.6% 낮았다. prompt 길이 전체 분포와 지속 시간이 포함되자 더 큰 active batch의 CPU 경쟁이 드러난 것이다. 이 비교는 KV와 `max-num-seqs`의 결합 결과이며 어느 한 변수의 단독 효과가 아니다. 짧은 pilot은 기능 검증과 후보 제거에는 유용하지만 성능 결론으로 사용하면 안 된다.
 
 ## 로컬 K8s에서 GPU production으로 가져갈 것
 

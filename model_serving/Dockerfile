@@ -32,4 +32,4 @@ EXPOSE 8000
 # Explicitly override the upstream entrypoint so the same command can be used
 # for Docker smoke tests and in Kubernetes.
 ENTRYPOINT ["vllm", "serve"]
-CMD ["/models/qwen3.5-0.8b", "--host", "0.0.0.0", "--port", "8000", "--served-model-name", "qwen3.5-0.8b", "--dtype", "bfloat16", "--language-model-only", "--max-model-len", "2048", "--max-num-seqs", "20", "--max-num-batched-tokens", "2048", "--no-enable-prefix-caching"]
+CMD ["/models/qwen3.5-0.8b", "--host", "0.0.0.0", "--port", "8000", "--served-model-name", "qwen3.5-0.8b", "--dtype", "bfloat16", "--language-model-only", "--max-model-len", "2048", "--max-num-seqs", "20", "--max-num-batched-tokens", "2048", "--kv-cache-memory-bytes", "536870912", "--no-enable-prefix-caching"]

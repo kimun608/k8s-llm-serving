@@ -6,6 +6,7 @@
 - `cluster-metadata.txt`: Task 02 Kind 생성 및 이미지 로드 결과
 - `deployment-metadata.txt`: Task 03 K8s 배포와 Ready 시간
 - `smoke-response.json`: Service API smoke test 결과
+- `final-state-metadata.txt`: 모든 실험 후 다시 빌드·로드하고 복구한 `baseline-cpu8` 제출 상태
 
 성능 부하 테스트는 실행기와 함께 관리하기 위해 아래 경로에 보관합니다.
 

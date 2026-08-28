@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and compare CPU-8 baseline, MTP, and MTP+KV benchmark results."""
+"""Validate CPU-8 baseline, MTP, and MTP capacity-bundle benchmark results."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ VARIANTS = ("baseline-cpu8", "mtp-cpu8", "mtp-kv-tuned-cpu8")
 DISPLAY_NAMES = {
     "baseline-cpu8": "CPU8 baseline",
     "mtp-cpu8": "CPU8 MTP2",
-    "mtp-kv-tuned-cpu8": "CPU8 MTP2 + KV tuned",
+    "mtp-kv-tuned-cpu8": "CPU8 MTP2 + KV768 + max-seqs24",
 }
 MTP_CONFIG = '{"method":"qwen3_next_mtp","num_speculative_tokens":2}'
 
@@ -71,7 +71,8 @@ def validate_container_changes(manifests: dict[str, dict]) -> None:
     )
     if combined["args"] != expected_combined_args:
         raise ValueError(
-            "MTP+KV CPU8 args differ from MTP by more than max sequences 24 and KV 768MiB"
+            "CPU8 capacity-bundle args differ from MTP by more than "
+            "max sequences 24 and KV 768MiB"
         )
 
 
@@ -191,7 +192,7 @@ def main() -> None:
                     ),
                     6,
                 ),
-                "kv_vs_mtp_output_percent": fmt(
+                "capacity_bundle_vs_mtp_output_percent": fmt(
                     percent_change(
                         mtp["output_token_throughput_tps"],
                         combined["output_token_throughput_tps"],
@@ -210,9 +211,9 @@ def main() -> None:
                 "baseline_ttft_p95_seconds": fmt(baseline["ttft_seconds_p95"], 6),
                 "mtp_ttft_p95_seconds": fmt(mtp["ttft_seconds_p95"], 6),
                 "combined_ttft_p95_seconds": fmt(combined["ttft_seconds_p95"], 6),
-                "baseline_tpot_p95_ms": fmt(baseline["tpot_seconds_p95"], 6),
-                "mtp_tpot_p95_ms": fmt(mtp["tpot_seconds_p95"], 6),
-                "combined_tpot_p95_ms": fmt(combined["tpot_seconds_p95"], 6),
+                "baseline_tpot_p95_ms": fmt(baseline["tpot_ms_p95"], 6),
+                "mtp_tpot_p95_ms": fmt(mtp["tpot_ms_p95"], 6),
+                "combined_tpot_p95_ms": fmt(combined["tpot_ms_p95"], 6),
                 "baseline_peak_running": fmt(baseline["peak_running_requests"], 0),
                 "mtp_peak_running": fmt(mtp["peak_running_requests"], 0),
                 "combined_peak_running": fmt(combined["peak_running_requests"], 0),
@@ -240,7 +241,7 @@ def main() -> None:
         ("output-token-throughput.svg", "CPU8 output token throughput", "token/s", "output_token_throughput_tps"),
         ("e2e-p95.svg", "CPU8 E2E latency p95", "seconds", "e2e_seconds_p95"),
         ("ttft-p95.svg", "CPU8 TTFT p95", "seconds", "ttft_seconds_p95"),
-        ("tpot-p95.svg", "CPU8 TPOT p95", "milliseconds/token", "tpot_seconds_p95"),
+        ("tpot-p95.svg", "CPU8 TPOT p95", "milliseconds/token", "tpot_ms_p95"),
         ("peak-running.svg", "CPU8 peak running requests", "requests", "peak_running_requests"),
         ("peak-waiting.svg", "CPU8 peak waiting requests", "requests", "peak_waiting_requests"),
         ("kv-cache.svg", "CPU8 peak KV cache usage", "percent", "peak_kv_cache_percent"),
@@ -273,20 +274,33 @@ def main() -> None:
         "percent",
     )
 
-    table = [
-        "| C | Output tok/s base / MTP / MTP+KV | MTP vs base | Combined vs base | E2E p95 base → combined | Peak run/wait base / MTP / combined | Acceptance MTP / combined |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|",
+    throughput_table = [
+        "| C | Baseline | MTP2 | MTP2+KV768+seq24 | MTP vs base | Capacity bundle vs MTP | Bundle vs base |",
+        "|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    pressure_table = [
+        "| C | E2E p95 base / MTP / bundle | Peak running base / MTP / bundle | Peak waiting base / MTP / bundle | Acceptance MTP / bundle |",
+        "|---:|---:|---:|---:|---:|",
     ]
     for row in comparison_rows:
-        table.append(
-            f"| {row['concurrency']} | {float(row['baseline_output_tps']):.2f} / "
-            f"{float(row['mtp_output_tps']):.2f} / {float(row['combined_output_tps']):.2f} | "
+        baseline_output = f"{float(row['baseline_output_tps']):.2f}"
+        if int(row["concurrency"]) == 5:
+            baseline_output += "¹"
+        throughput_table.append(
+            f"| {row['concurrency']} | {baseline_output} | "
+            f"{float(row['mtp_output_tps']):.2f} | {float(row['combined_output_tps']):.2f} | "
             f"{float(row['mtp_vs_baseline_output_percent']):+.1f}% | "
-            f"{float(row['combined_vs_baseline_output_percent']):+.1f}% | "
-            f"{float(row['baseline_e2e_p95_seconds']):.2f}s → {float(row['combined_e2e_p95_seconds']):.2f}s | "
-            f"{row['baseline_peak_running']}/{row['baseline_peak_waiting']} / "
-            f"{row['mtp_peak_running']}/{row['mtp_peak_waiting']} / "
-            f"{row['combined_peak_running']}/{row['combined_peak_waiting']} | "
+            f"{float(row['capacity_bundle_vs_mtp_output_percent']):+.1f}% | "
+            f"{float(row['combined_vs_baseline_output_percent']):+.1f}% |"
+        )
+        pressure_table.append(
+            f"| {row['concurrency']} | {float(row['baseline_e2e_p95_seconds']):.2f}s / "
+            f"{float(row['mtp_e2e_p95_seconds']):.2f}s / "
+            f"{float(row['combined_e2e_p95_seconds']):.2f}s | "
+            f"{row['baseline_peak_running']}/{row['mtp_peak_running']}/"
+            f"{row['combined_peak_running']} | "
+            f"{row['baseline_peak_waiting']}/{row['mtp_peak_waiting']}/"
+            f"{row['combined_peak_waiting']} | "
             f"{float(row['mtp_acceptance_percent']):.1f}% / {float(row['combined_acceptance_percent']):.1f}% |"
         )
 
@@ -305,19 +319,31 @@ def main() -> None:
         for name in VARIANTS
         for row in by_variant[name].values()
     )
-    report = f"""# CPU limit 8: Baseline vs MTP vs MTP+KV 자동 비교
+    report = f"""# CPU limit 8: Baseline vs MTP2 vs capacity bundle 자동 비교
 
 ## 검증
 
 - 비교 요청: `{total_requests}`건, 실패 `{total_failures}`건
 - 세 설정 모두 CPU request/limit `4/8`, 동일 image/model/memory/workload를 사용함
-- 유일한 단계 변경은 MTP 추가, 이어서 KV `512→768MiB`와 max sequences `20→24` 추가임
+- 첫 단계는 MTP만 추가했고, 다음 단계는 KV `512→768MiB`와 max sequences `20→24`를 함께 추가함
 - client/server token counter, wall/monotonic timer, metric scrape를 모든 phase에서 검증함
 - 전체 OOM kill 증가량: `{total_oom:.0f}`
 
-## 결과
+`mtp-kv-tuned-cpu8`은 역사적인 artifact ID다. 실제 의미는 `MTP2 + KV768MiB + max-seqs24` capacity bundle이며 KV 단독 실험이 아니다.
 
-{chr(10).join(table)}
+## 처리량
+
+단위는 output token/s다.
+
+{chr(10).join(throughput_table)}
+
+## Latency와 scheduler
+
+{chr(10).join(pressure_table)}
+
+Peak running과 peak waiting은 각 시계열에서 독립적으로 구한 최댓값이며 같은 시점의 쌍이 아니다.
+
+¹ C=5 baseline은 두 번째 유효 표본을 공식값으로 채택했으며 첫 유효 표본과 output throughput 차이는 19.5%였다.
 
 ## 그래프
 
@@ -332,7 +358,7 @@ def main() -> None:
 - [Pod CPU](charts/pod-cpu.svg)
 - [MTP acceptance](charts/mtp-acceptance.svg)
 
-이 문서는 원시 결과에서 자동 생성한 사실표다. 원인과 최종 권고는 [CPU8 MTP·KV 분석 리포트](../../../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 정리한다.
+이 문서는 원시 결과에서 자동 생성한 사실표다. 원인과 최종 권고는 [CPU8 MTP·capacity bundle 분석 리포트](../../../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 정리한다.
 """
     (args.output / "REPORT.md").write_text(report, encoding="utf-8")
     print(f"Validated CPU8 optimization comparison across {total_requests} requests")

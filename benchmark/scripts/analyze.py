@@ -60,13 +60,19 @@ def metric_average(rows: list[dict], name: str) -> float:
     return statistics.fmean(values) if values else math.nan
 
 
-def latency_stats(rows: list[dict], name: str, scale: float = 1.0) -> dict[str, float]:
+def latency_stats(
+    rows: list[dict],
+    name: str,
+    scale: float = 1.0,
+    output_name: str | None = None,
+) -> dict[str, float]:
     values = [value * scale for value in finite([row.get(name) for row in rows])]
+    prefix = output_name or name
     return {
-        f"{name}_mean": statistics.fmean(values) if values else math.nan,
-        f"{name}_p50": percentile(values, 0.50),
-        f"{name}_p95": percentile(values, 0.95),
-        f"{name}_p99": percentile(values, 0.99),
+        f"{prefix}_mean": statistics.fmean(values) if values else math.nan,
+        f"{prefix}_p50": percentile(values, 0.50),
+        f"{prefix}_p95": percentile(values, 0.95),
+        f"{prefix}_p99": percentile(values, 0.99),
     }
 
 
@@ -100,6 +106,9 @@ def aggregate(input_dir: Path) -> tuple[list[dict], dict]:
         )
         draft_tokens = metric_delta(metrics, "vllm:spec_decode_num_draft_tokens_total")
         accepted_tokens = metric_delta(metrics, "vllm:spec_decode_num_accepted_tokens_total")
+        cpu_periods_delta = metric_delta(metrics, "pod_cpu_nr_periods")
+        cpu_throttled_periods_delta = metric_delta(metrics, "pod_cpu_nr_throttled")
+        cpu_throttled_usec_delta = metric_delta(metrics, "pod_cpu_throttled_usec")
 
         summary = {
             "concurrency": int(phase["concurrency"]),
@@ -115,13 +124,26 @@ def aggregate(input_dir: Path) -> tuple[list[dict], dict]:
             "total_completion_tokens": completion_tokens,
             **latency_stats(success, "e2e_seconds"),
             **latency_stats(success, "ttft_seconds"),
-            **latency_stats(success, "tpot_seconds", scale=1000.0),
+            **latency_stats(success, "tpot_seconds", scale=1000.0, output_name="tpot_ms"),
             "peak_running_requests": metric_peak(metrics, "vllm:num_requests_running"),
             "peak_waiting_requests": metric_peak(metrics, "vllm:num_requests_waiting"),
             "peak_kv_cache_percent": 100 * metric_peak(metrics, "vllm:kv_cache_usage_perc"),
             "avg_running_requests": metric_average(metrics, "vllm:num_requests_running"),
             "avg_waiting_requests": metric_average(metrics, "vllm:num_requests_waiting"),
             "avg_pod_cpu_cores": avg_cpu_cores,
+            "cpu_periods_delta": cpu_periods_delta,
+            "cpu_throttled_periods_delta": cpu_throttled_periods_delta,
+            "cpu_throttled_period_percent": (
+                100 * cpu_throttled_periods_delta / cpu_periods_delta
+                if math.isfinite(cpu_periods_delta) and cpu_periods_delta > 0
+                else math.nan
+            ),
+            "cpu_throttled_usec_delta": cpu_throttled_usec_delta,
+            "cpu_throttled_time_percent": (
+                100 * cpu_throttled_usec_delta / 1_000_000 / sampled_duration
+                if math.isfinite(cpu_throttled_usec_delta) and sampled_duration > 0
+                else math.nan
+            ),
             "peak_pod_memory_gib": metric_peak(metrics, "pod_memory_current_bytes") / 1024**3,
             "server_prompt_tokens_delta": metric_delta(metrics, "vllm:prompt_tokens_total"),
             "server_generation_tokens_delta": metric_delta(metrics, "vllm:generation_tokens_total"),
@@ -152,6 +174,17 @@ def format_number(value: Any) -> str:
             return ""
         return f"{value:.6f}"
     return str(value)
+
+
+def json_safe(value: Any) -> Any:
+    """Replace non-finite floats so summary.json remains standards-compliant JSON."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    return value
 
 
 def write_summary_csv(path: Path, rows: list[dict]) -> None:
@@ -295,7 +328,7 @@ def create_charts(input_dir: Path, rows: list[dict]) -> None:
         chart_dir / "tpot.svg",
         "Time per output token vs concurrency",
         x,
-        [(label, [row[f"tpot_seconds_{key}"] for row in rows]) for label, key in (("p50", "p50"), ("p95", "p95"), ("p99", "p99"))],
+        [(label, [row[f"tpot_ms_{key}"] for row in rows]) for label, key in (("p50", "p50"), ("p95", "p95"), ("p99", "p99"))],
         "Milliseconds / token",
     )
     line_chart(
@@ -404,8 +437,8 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
         table_lines.append(
             "| {concurrency} | {success_rate_percent:.1f}% | {request_throughput_rps:.3f} | "
             "{output_token_throughput_tps:.2f} | {e2e_seconds_p50:.2f} / {e2e_seconds_p95:.2f} | "
-            "{ttft_seconds_p50:.2f} / {ttft_seconds_p95:.2f} | {tpot_seconds_p50:.2f} / "
-            "{tpot_seconds_p95:.2f} | {peak_waiting_requests:.0f} | {peak_kv_cache_percent:.1f}% | "
+            "{ttft_seconds_p50:.2f} / {ttft_seconds_p95:.2f} | {tpot_ms_p50:.2f} / "
+            "{tpot_ms_p95:.2f} | {peak_waiting_requests:.0f} | {peak_kv_cache_percent:.1f}% | "
             "{avg_pod_cpu_cores:.2f} | {peak_pod_memory_gib:.2f}GiB |".format(**row)
         )
 
@@ -415,9 +448,13 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
             "reports/05_BASELINE_CPU8_ANALYSIS.md"
             if experiment == "baseline-cpu8"
             else (
-                "reports/06_CPU8_MTP_KV_ANALYSIS.md"
-                if experiment in {"mtp-cpu8", "mtp-kv-tuned-cpu8"}
-                else "reports/04_OPTIMIZATION_FINAL_ANALYSIS.md"
+                "reports/07_FINAL_COMPREHENSIVE_ANALYSIS.md"
+                if experiment in {"mtp-kv768-cpu8", "mtp-seq24-cpu8"}
+                else (
+                    "reports/06_CPU8_MTP_KV_ANALYSIS.md"
+                    if experiment in {"mtp-cpu8", "mtp-kv-tuned-cpu8"}
+                    else "reports/04_OPTIMIZATION_FINAL_ANALYSIS.md"
+                )
             )
         )
         acceptance_values = [
@@ -472,7 +509,7 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 
 - 고정된 100개 요청을 동시성 `{', '.join(str(row['concurrency']) for row in rows)}`에서 각각 한 번씩 실행하여 총 `{sum(row['requests'] for row in rows)}`건을 측정했다.
 - nominal 최고 output throughput은 동시성 `{best['concurrency']}`의 `{best['output_token_throughput_tps']:.2f} token/s`였지만, C=20의 `{c20['output_token_throughput_tps']:.2f} token/s`보다 `{throughput_gain_after_c20:.2f}%` 높은 수준에 불과하다. 실용적 처리량 포화점은 C=20이다.
-- 동시성 `{first['concurrency']} → {last['concurrency']}`에서 E2E p95는 `{ratio(last['e2e_seconds_p95'], first['e2e_seconds_p95'])}`, TTFT p95는 `{ratio(last['ttft_seconds_p95'], first['ttft_seconds_p95'])}`, TPOT p95는 `{ratio(last['tpot_seconds_p95'], first['tpot_seconds_p95'])}`가 됐다.
+- 동시성 `{first['concurrency']} → {last['concurrency']}`에서 E2E p95는 `{ratio(last['e2e_seconds_p95'], first['e2e_seconds_p95'])}`, TTFT p95는 `{ratio(last['ttft_seconds_p95'], first['ttft_seconds_p95'])}`, TPOT p95는 `{ratio(last['tpot_ms_p95'], first['tpot_ms_p95'])}`가 됐다.
 - C=1→20에서 output throughput은 `{c1_to_c20_throughput:.2f}×`가 됐지만, C=20→100에서 E2E p95는 추가로 `{c20_to_last_e2e_p95:.2f}×` 악화됐다.
 - 최초로 scheduler waiting이 관찰된 동시성은 `{first_wait['concurrency'] if first_wait else '없음'}`이다. 전체 prefix cache hit 증가량은 `{total_prefix_hits:.0f}`, preemption 증가량은 `{total_preemptions:.0f}`, Pod OOM kill 증가량은 `{total_oom:.0f}`이다.
 
@@ -548,7 +585,10 @@ def main() -> int:
     if not rows:
         raise RuntimeError(f"No completed phases in {args.input}")
     write_summary_csv(args.input / "summary.csv", rows)
-    (args.input / "summary.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (args.input / "summary.json").write_text(
+        json.dumps(json_safe(rows), ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     create_charts(args.input, rows)
     write_report(args.input, rows, manifest)
     print(f"Wrote summary, {len(list((args.input / 'charts').glob('*.svg')))} charts, and REPORT.md")

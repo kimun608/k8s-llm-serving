@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and compare baseline, MTP, and MTP+KV benchmark summaries."""
+"""Validate and compare baseline, MTP, and the legacy capacity bundle."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ VARIANT_ORDER = ("baseline", "mtp", "mtp-kv-tuned")
 DISPLAY_NAMES = {
     "baseline": "Baseline",
     "mtp": "MTP2",
-    "mtp-kv-tuned": "MTP2 + KV tuned",
+    "mtp-kv-tuned": "MTP2 + KV768 + max-seqs24",
 }
 FIXED_CONFIG_KEYS = (
     "model",
@@ -155,7 +155,7 @@ def main() -> None:
                 "final_output_tps": fmt(final["output_token_throughput_tps"], 6),
                 "mtp_vs_baseline_output_percent": fmt(percent_change(baseline["output_token_throughput_tps"], mtp["output_token_throughput_tps"]), 6),
                 "final_vs_baseline_output_percent": fmt(percent_change(baseline["output_token_throughput_tps"], final["output_token_throughput_tps"]), 6),
-                "kv_vs_mtp_output_percent": fmt(percent_change(mtp["output_token_throughput_tps"], final["output_token_throughput_tps"]), 6),
+                "capacity_bundle_vs_mtp_output_percent": fmt(percent_change(mtp["output_token_throughput_tps"], final["output_token_throughput_tps"]), 6),
                 "baseline_e2e_p95_seconds": fmt(baseline["e2e_seconds_p95"], 6),
                 "mtp_e2e_p95_seconds": fmt(mtp["e2e_seconds_p95"], 6),
                 "final_e2e_p95_seconds": fmt(final["e2e_seconds_p95"], 6),
@@ -164,10 +164,10 @@ def main() -> None:
                 "mtp_ttft_p95_seconds": fmt(mtp["ttft_seconds_p95"], 6),
                 "final_ttft_p95_seconds": fmt(final["ttft_seconds_p95"], 6),
                 "final_vs_baseline_ttft_p95_percent": fmt(percent_change(baseline["ttft_seconds_p95"], final["ttft_seconds_p95"]), 6),
-                "baseline_tpot_p95_ms": fmt(baseline["tpot_seconds_p95"], 6),
-                "mtp_tpot_p95_ms": fmt(mtp["tpot_seconds_p95"], 6),
-                "final_tpot_p95_ms": fmt(final["tpot_seconds_p95"], 6),
-                "final_vs_baseline_tpot_p95_percent": fmt(percent_change(baseline["tpot_seconds_p95"], final["tpot_seconds_p95"]), 6),
+                "baseline_tpot_p95_ms": fmt(baseline["tpot_ms_p95"], 6),
+                "mtp_tpot_p95_ms": fmt(mtp["tpot_ms_p95"], 6),
+                "final_tpot_p95_ms": fmt(final["tpot_ms_p95"], 6),
+                "final_vs_baseline_tpot_p95_percent": fmt(percent_change(baseline["tpot_ms_p95"], final["tpot_ms_p95"]), 6),
                 "baseline_peak_running": fmt(baseline["peak_running_requests"], 0),
                 "mtp_peak_running": fmt(mtp["peak_running_requests"], 0),
                 "final_peak_running": fmt(final["peak_running_requests"], 0),
@@ -187,7 +187,7 @@ def main() -> None:
         ("output-token-throughput.svg", "Output token throughput", "token/s", "output_token_throughput_tps"),
         ("e2e-p95.svg", "E2E latency p95", "seconds", "e2e_seconds_p95"),
         ("ttft-p95.svg", "TTFT p95", "seconds", "ttft_seconds_p95"),
-        ("tpot-p95.svg", "TPOT p95", "milliseconds/token", "tpot_seconds_p95"),
+        ("tpot-p95.svg", "TPOT p95", "milliseconds/token", "tpot_ms_p95"),
         ("peak-running.svg", "Peak running requests", "requests", "peak_running_requests"),
         ("peak-waiting.svg", "Peak waiting requests", "requests", "peak_waiting_requests"),
         ("kv-cache.svg", "Peak KV cache usage", "percent", "peak_kv_cache_percent"),
@@ -214,7 +214,7 @@ def main() -> None:
     line_chart(charts_dir / "mtp-acceptance.svg", "MTP acceptance rate", concurrencies, acceptance_series, "percent")
 
     table = [
-        "| C | Baseline / MTP / Combined output tok/s | Combined vs base | Baseline / Combined E2E p95 | Combined vs base | Base / MTP / Combined peak wait | Combined acceptance |",
+        "| C | Baseline / MTP / Bundle output tok/s | Bundle vs base | Baseline / Bundle E2E p95 | Bundle vs base | Base / MTP / Bundle peak wait | Bundle acceptance |",
         "|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in comparison_rows:
@@ -228,7 +228,7 @@ def main() -> None:
     total_requests = sum(int(row["requests"]) for name in VARIANT_ORDER for row in by_variant[name].values())
     total_failures = sum(int(row["failures"]) for name in VARIANT_ORDER for row in by_variant[name].values())
     total_oom = sum(finite(row["oom_kill_events_delta"]) for name in VARIANT_ORDER for row in by_variant[name].values())
-    report = f"""# Baseline vs MTP vs MTP+KV 자동 비교
+    report = f"""# Baseline vs MTP vs capacity bundle 자동 비교
 
 ## 검증
 
@@ -237,6 +237,8 @@ def main() -> None:
 - client/server prompt와 generation token counter가 모든 단계에서 일치함
 - 정식 phase의 UTC wall clock과 monotonic timer 오차가 1%/5초 이내이며 metric scrape error가 없음
 - 전체 OOM kill 증가량: `{total_oom:.0f}`
+
+`mtp-kv-tuned`은 역사적인 artifact ID다. 실제 변경은 KV `512→768MiB`와 `max-num-seqs 20→24`를 함께 적용한 capacity bundle이며 KV-only 실험이 아니다.
 
 ## 결과
 

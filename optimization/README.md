@@ -42,7 +42,7 @@ MTP 판단 지표:
 - MTP 원인 지표: draft tokens, accepted tokens, acceptance rate
 - 안전성: memory peak, preemption, OOM/restart
 
-## 최적화 2: KV cache와 scheduler capacity
+## 최적화 2: KV cache와 scheduler capacity bundle
 
 ### FP8 KV cache 후보
 
@@ -57,13 +57,13 @@ vLLM CLI는 `--kv-cache-dtype fp8`을 파싱하지만, 고정 버전의 공식 �
 
 ### ARM CPU 대안
 
-FP8 KV가 지원되지 않으면 베이스라인 병목에 직접 대응하는 아래 설정을 두 번째 최적화로 사용합니다.
+FP8 KV가 지원되지 않으면 베이스라인 병목에 대응하는 아래 두 변경을 하나의 capacity bundle로 적용합니다.
 
 - KV memory: 512MiB → 768MiB
 - `max-num-seqs`: 20 → 24
 - Pod memory limit과 CPU limit은 그대로 유지
 
-재측정된 베이스라인 peak memory가 6.05GiB였으므로 256MiB의 KV 증가 후에는 6.5GiB limit까지 headroom이 작을 것으로 예상됩니다. 이 설정은 cache dtype을 바꾸지 않으므로 수치 정밀도 변화가 없고, C=20 이상에서 peak running 16을 늘릴 수 있는지 직접 검증할 수 있습니다. 반면 더 큰 batch가 CPU 경쟁을 키우면 TPOT 또는 전체 처리량이 악화될 수 있습니다.
+재측정된 베이스라인 peak memory가 6.05GiB였으므로 256MiB의 KV 증가 후에는 6.5GiB limit까지 headroom이 작을 것으로 예상됩니다. 이 설정은 cache dtype을 바꾸지 않으므로 수치 정밀도 변화가 없고, C=20 이상에서 실행 폭과 waiting이 달라지는지 검증할 수 있습니다. 반면 더 큰 batch가 CPU 경쟁을 키우면 TPOT 또는 전체 처리량이 악화될 수 있습니다. KV byte 예산과 `max-num-seqs`를 동시에 바꾸므로 이 설계는 두 변수의 독립 효과를 분리하지 않습니다.
 
 ## 실험 행렬
 
@@ -71,9 +71,9 @@ FP8 KV가 지원되지 않으면 베이스라인 병목에 직접 대응하는 �
 |---|---|---|---|
 | `baseline` | off | 512MiB / 20 | 완료된 기준값 |
 | `mtp` | 후보 검증 후 고정 | 512MiB / 20 | MTP 효과 단독 분리 |
-| `mtp-kv-tuned` | `mtp`와 동일 | 768MiB / 24 | MTP 대비 KV/scheduler 증분 효과 및 두 최적화 결합 결과 |
+| `mtp-kv-tuned` (legacy artifact ID) | `mtp`와 동일 | 768MiB / 24 | MTP 대비 capacity bundle의 관측 차이 및 두 최적화 결합 결과 |
 
-따라서 `baseline → mtp`로 첫 번째 최적화를, `mtp → mtp-kv-tuned`으로 두 번째 최적화를 분리해 해석할 수 있고, 과제의 최종 before/after는 `baseline → mtp-kv-tuned`으로 제시합니다.
+따라서 `baseline → mtp`는 MTP 단독 효과로 해석하고, `mtp → mtp-kv-tuned`은 두 번째 capacity bundle 전체의 관측 차이로 해석합니다. 후자는 KV `512→768MiB`와 `max-num-seqs` `20→24`의 개별 인과효과를 분리하지 않습니다. 과제의 최종 before/after는 `baseline → mtp-kv-tuned`으로 제시합니다. `mtp-kv-tuned`라는 이름은 기존 Make target·결과 경로와 호환하기 위한 legacy artifact ID이며 KV-only 실험을 의미하지 않습니다.
 
 ## 배포와 롤백 원칙
 
@@ -101,7 +101,7 @@ make benchmark-compare
 benchmark/results/
 ├── baseline/                  # 이미 완료
 ├── mtp/                       # MTP 단독 700건
-├── mtp-kv-tuned/              # 두 최적화 결합 700건
+├── mtp-kv-tuned/              # legacy ID: MTP + capacity bundle 700건
 └── comparison/
     ├── comparison.csv
     ├── REPORT.md
@@ -128,7 +128,7 @@ FP8 KV 실패 상세는 `reports/03_FAILED_OPTIMIZATION_FP8_KV.md`, 최종 과�
 - 부가 경고: Qwen3.5처럼 recurrent GDN layer가 있는 hybrid model은 runtime KV scale 계산이 신뢰할 수 없어 `calculate_kv_scales`가 강제로 꺼지고 scale 1.0을 사용함
 - 판단: Apple M4/aarch64 CPU에서는 FP8 KV kernel이 없어 정식 700건 부하를 실행할 수 없음
 
-즉 `vllm serve --help`에 FP8 선택지가 나타나는 것은 공통 CLI schema가 해당 값을 파싱한다는 뜻이지, 모든 backend가 실행 kernel을 제공한다는 뜻이 아닙니다. 이 후보는 성능이 나쁜 정도가 아니라 현재 장비에서 적용 불가능한 최적화이며, 두 번째 정식 최적화는 위에서 정의한 BF16 KV capacity/scheduler tuning으로 진행합니다.
+즉 `vllm serve --help`에 FP8 선택지가 나타나는 것은 공통 CLI schema가 해당 값을 파싱한다는 뜻이지, 모든 backend가 실행 kernel을 제공한다는 뜻이 아닙니다. 이 후보는 성능이 나쁜 정도가 아니라 현재 장비에서 적용 불가능한 최적화이며, 두 번째 정식 최적화는 위에서 정의한 BF16 capacity bundle(KV byte 예산 + scheduler sequence 상한)로 진행합니다.
 
 ### Generic MTP, 5 speculative tokens: 기동 성공, 고동시성 후보 탈락
 
@@ -160,25 +160,27 @@ C=1에서는 speculative acceptance로 decode가 빨라질 가능성이 확인�
 
 동일 pilot에서 MTP2는 MTP5보다 C=1 duration 3.5%, C=20 duration 19.1%가 짧았고 acceptance는 약 18~23%p 높았다. C=20 output throughput도 23.5% 높았다. MTP2의 TPOT p50이 C=20에서 더 높은 것은 KV capacity 증가로 실제 running이 3에서 5로 늘어 decode batch의 CPU 경쟁이 커진 영향으로 해석할 수 있다. 그러나 전체 처리량과 E2E p95가 개선됐으므로 공식 MTP2를 정식 700건 설정으로 선택한다.
 
-### MTP2 + 768MiB KV / 24 sequences: 정식 결합 설정으로 선택
+### MTP2 + capacity bundle(768MiB KV / 24 sequences): 정식 결합 설정으로 선택
 
 - 검증 overlay: `model_serving/k8s/overlays/mtp-kv-tuned`
+- artifact 이름 `mtp-kv-tuned`는 호환성을 위해 유지하는 legacy ID이며 KV-only 변경을 뜻하지 않음
 - MTP는 위의 정식 MTP2와 동일
 - KV capacity: 512MiB 9,137 → 768MiB 13,705 tokens, 50% 증가
+- `max-num-seqs`: 20 → 24
 - C=20 pilot: 동일 앞 20건·64 output tokens
 
 | 설정 | 성공 | duration | output tok/s | E2E p95 | TTFT p95 | TPOT p50 | peak run/wait | peak RAM |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | MTP2 | 20/20 | 115.04s | 11.13 | 112.68s | 103.46s | 377.90ms | 5/15 | 6.03GiB |
-| MTP2+KV | 20/20 | 98.09s | 13.05 | 97.20s | 86.36s | 468.98ms | 8/12 | 6.27GiB |
+| MTP2+capacity bundle | 20/20 | 98.09s | 13.05 | 97.20s | 86.36s | 468.98ms | 8/12 | 6.27GiB |
 
-KV tuning은 MTP 단독 대비 output throughput을 17.3% 높이고 E2E p95를 13.7% 낮췄다. peak running이 5에서 8로 늘면서 waiting이 줄었기 때문이다. 반면 더 큰 active batch가 같은 6-core CPU를 나눠 사용해 TPOT p50은 24.1% 악화됐다. peak memory는 6.27GiB로 6.5GiB limit 안이었고 OOM/restart는 0이므로 이 trade-off를 정식 700건에서 재검증한다.
+capacity bundle 실행은 MTP 단독보다 output throughput이 17.3% 높고 E2E p95가 13.7% 낮았으며, peak running 5→8과 waiting 감소가 함께 관측됐다. 반면 더 큰 active batch가 같은 6-core CPU를 나눠 사용해 TPOT p50은 24.1% 악화됐다. peak memory는 6.27GiB로 6.5GiB limit 안이었고 OOM/restart는 0이므로 이 trade-off를 정식 700건에서 재검증한다. 기존 `max-num-seqs=20`보다 peak running 5·8이 모두 작으므로 KV 예산 증가가 실행 폭 변화의 주된 설명이지만, 이 pilot만으로 두 설정의 독립 인과효과를 확정하지 않는다.
 
 ## 정식 2,100-request 비교 결과
 
 세 설정에서 각 700건을 완료했다. 총 2,100/2,100 성공, client/server token counter 전 phase 일치, OOM/restart와 prefix hit는 0이다.
 
-| C | Baseline output tok/s | MTP2 | MTP2+KV | 결합 vs baseline |
+| C | Baseline output tok/s | MTP2 | MTP2+capacity bundle | 결합 vs baseline |
 |---:|---:|---:|---:|---:|
 | 1 | 5.16 | 7.80 | 7.43 | +44.0% |
 | 2 | 7.64 | 9.99 | 10.01 | +31.0% |
@@ -188,10 +190,10 @@ KV tuning은 MTP 단독 대비 output throughput을 17.3% 높이고 E2E p95를 1
 | 50 | 13.46 | 12.31 | 12.52 | -7.0% |
 | 100 | 13.54 | 12.05 | 12.29 | -9.2% |
 
-MTP2의 약 75~77% acceptance는 낮은 동시성의 decode를 크게 개선했다. 그러나 512MiB KV에서 active running이 5로 제한돼 C≥20 총 처리량은 baseline보다 낮았다. 768MiB KV는 running을 8로 늘리고 waiting을 3씩 줄였지만, 6-core CPU에서 batch 경쟁을 키워 MTP 단독 대비 C=10~100 TPOT p95가 46.8~76.7% 악화됐다. 따라서 저동시성에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 이 장비의 더 나은 선택이며 768MiB/24-seq 결합 설정은 범용 기본값으로 채택하지 않는다.
+MTP2의 약 75~77% acceptance는 낮은 동시성의 decode를 크게 개선했다. 그러나 512MiB KV에서 active running이 5로 제한돼 C≥20 총 처리량은 baseline보다 낮았다. 768MiB KV와 `max-num-seqs=24`를 함께 적용한 bundle에서는 running 8과 waiting 3개 감소가 관측됐지만, 6-core CPU에서 batch 경쟁이 커지며 MTP 단독 대비 C=10~100 TPOT p95가 46.8~76.7% 악화됐다. 이 결과는 capacity bundle 전체의 관측 차이이며 KV 또는 sequence 상한 하나의 단독 효과가 아니다. 따라서 저동시성에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 이 장비의 더 나은 선택이며 768MiB/24-seq 결합 설정은 범용 기본값으로 채택하지 않는다.
 
 자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 상세 원인·실패 후보·GPU production 전환 분석은 [`reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 있다.
 
 이후 baseline에서 CPU limit만 `6 → 8`로 바꾼 독립 실험은 [`optimization/cpu8/README.md`](cpu8/README.md)와 [`reports/05_BASELINE_CPU8_ANALYSIS.md`](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 분리했다.
 
-CPU limit 8을 고정한 후속 baseline/MTP/MTP+KV 비교는 [`optimization/cpu8-mtp-kv/README.md`](cpu8-mtp-kv/README.md)와 [`reports/06_CPU8_MTP_KV_ANALYSIS.md`](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 분리했다.
+CPU limit 8을 고정한 후속 baseline/MTP/capacity bundle 비교는 [`optimization/cpu8-mtp-kv/README.md`](cpu8-mtp-kv/README.md)와 [`reports/06_CPU8_MTP_KV_ANALYSIS.md`](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 분리했다.

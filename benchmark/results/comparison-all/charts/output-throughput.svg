@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="630" viewBox="0 0 1180 630">
+<rect width="100%" height="100%" fill="white"/>
+<text x="590.0" y="32" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">All variants: output token throughput</text>
+<line x1="100" y1="555.00" x2="1135" y2="555.00" stroke="#e5e7eb"/>
+<text x="88" y="559.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">-1.3</text>
+<line x1="100" y1="478.00" x2="1135" y2="478.00" stroke="#e5e7eb"/>
+<text x="88" y="482.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">2.5</text>
+<line x1="100" y1="401.00" x2="1135" y2="401.00" stroke="#e5e7eb"/>
+<text x="88" y="405.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">6.2</text>
+<line x1="100" y1="324.00" x2="1135" y2="324.00" stroke="#e5e7eb"/>
+<text x="88" y="328.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">10.0</text>
+<line x1="100" y1="247.00" x2="1135" y2="247.00" stroke="#e5e7eb"/>
+<text x="88" y="251.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">13.8</text>
+<line x1="100" y1="170.00" x2="1135" y2="170.00" stroke="#e5e7eb"/>
+<text x="88" y="174.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">17.5</text>
+<line x1="100.00" y1="170" x2="100.00" y2="555" stroke="#f3f4f6"/>
+<text x="100.00" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">1</text>
+<line x1="272.50" y1="170" x2="272.50" y2="555" stroke="#f3f4f6"/>
+<text x="272.50" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">2</text>
+<line x1="445.00" y1="170" x2="445.00" y2="555" stroke="#f3f4f6"/>
+<text x="445.00" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">5</text>
+<line x1="617.50" y1="170" x2="617.50" y2="555" stroke="#f3f4f6"/>
+<text x="617.50" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">10</text>
+<line x1="790.00" y1="170" x2="790.00" y2="555" stroke="#f3f4f6"/>
+<text x="790.00" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="962.50" y1="170" x2="962.50" y2="555" stroke="#f3f4f6"/>
+<text x="962.50" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">50</text>
+<line x1="1135.00" y1="170" x2="1135.00" y2="555" stroke="#f3f4f6"/>
+<text x="1135.00" y="580" text-anchor="middle" font-size="13" font-family="sans-serif">100</text>
+<line x1="100" y1="170" x2="100" y2="555" stroke="#111827"/>
+<line x1="100" y1="555" x2="1135" y2="555" stroke="#111827"/>
+<text x="617.5" y="610" text-anchor="middle" font-size="14" font-family="sans-serif">Concurrency</text>
+<text transform="translate(25 362.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Output tokens / second</text>
+<line x1="100" y1="58" x2="124" y2="58" stroke="#1d4ed8" stroke-width="3"/>
+<text x="131" y="62" font-size="12" font-family="sans-serif">CPU6 baseline</text>
+<polyline points="100.00,422.86 272.50,372.11 445.00,297.75 617.50,281.75 790.00,252.25 962.50,252.99 1135.00,251.33" fill="none" stroke="#1d4ed8" stroke-width="2.5"/>
+<circle cx="100.00" cy="422.86" r="3.5" fill="#1d4ed8"/>
+<circle cx="272.50" cy="372.11" r="3.5" fill="#1d4ed8"/>
+<circle cx="445.00" cy="297.75" r="3.5" fill="#1d4ed8"/>
+<circle cx="617.50" cy="281.75" r="3.5" fill="#1d4ed8"/>
+<circle cx="790.00" cy="252.25" r="3.5" fill="#1d4ed8"/>
+<circle cx="962.50" cy="252.99" r="3.5" fill="#1d4ed8"/>
+<circle cx="1135.00" cy="251.33" r="3.5" fill="#1d4ed8"/>
+<line x1="640" y1="58" x2="664" y2="58" stroke="#9333ea" stroke-width="3"/>
+<text x="671" y="62" font-size="12" font-family="sans-serif">CPU8 baseline</text>
+<polyline points="100.00,396.63 272.50,338.60 445.00,259.25 617.50,222.78 790.00,196.55 962.50,220.87 1135.00,218.53" fill="none" stroke="#9333ea" stroke-width="2.5"/>
+<circle cx="100.00" cy="396.63" r="3.5" fill="#9333ea"/>
+<circle cx="272.50" cy="338.60" r="3.5" fill="#9333ea"/>
+<circle cx="445.00" cy="259.25" r="3.5" fill="#9333ea"/>
+<circle cx="617.50" cy="222.78" r="3.5" fill="#9333ea"/>
+<circle cx="790.00" cy="196.55" r="3.5" fill="#9333ea"/>
+<circle cx="962.50" cy="220.87" r="3.5" fill="#9333ea"/>
+<circle cx="1135.00" cy="218.53" r="3.5" fill="#9333ea"/>
+<line x1="100" y1="83" x2="124" y2="83" stroke="#059669" stroke-width="3"/>
+<text x="131" y="87" font-size="12" font-family="sans-serif">CPU6 MTP2</text>
+<polyline points="100.00,368.91 272.50,324.11 445.00,285.62 617.50,286.85 790.00,287.46 962.50,276.58 1135.00,281.90" fill="none" stroke="#059669" stroke-width="2.5"/>
+<circle cx="100.00" cy="368.91" r="3.5" fill="#059669"/>
+<circle cx="272.50" cy="324.11" r="3.5" fill="#059669"/>
+<circle cx="445.00" cy="285.62" r="3.5" fill="#059669"/>
+<circle cx="617.50" cy="286.85" r="3.5" fill="#059669"/>
+<circle cx="790.00" cy="287.46" r="3.5" fill="#059669"/>
+<circle cx="962.50" cy="276.58" r="3.5" fill="#059669"/>
+<circle cx="1135.00" cy="281.90" r="3.5" fill="#059669"/>
+<line x1="640" y1="83" x2="664" y2="83" stroke="#e11d48" stroke-width="3"/>
+<text x="671" y="87" font-size="12" font-family="sans-serif">CPU8 MTP2</text>
+<polyline points="100.00,359.94 272.50,317.66 445.00,234.13 617.50,233.60 790.00,229.32 962.50,223.75 1135.00,217.96" fill="none" stroke="#e11d48" stroke-width="2.5"/>
+<circle cx="100.00" cy="359.94" r="3.5" fill="#e11d48"/>
+<circle cx="272.50" cy="317.66" r="3.5" fill="#e11d48"/>
+<circle cx="445.00" cy="234.13" r="3.5" fill="#e11d48"/>
+<circle cx="617.50" cy="233.60" r="3.5" fill="#e11d48"/>
+<circle cx="790.00" cy="229.32" r="3.5" fill="#e11d48"/>
+<circle cx="962.50" cy="223.75" r="3.5" fill="#e11d48"/>
+<circle cx="1135.00" cy="217.96" r="3.5" fill="#e11d48"/>
+<line x1="100" y1="108" x2="124" y2="108" stroke="#ea580c" stroke-width="3"/>
+<text x="131" y="112" font-size="12" font-family="sans-serif">CPU6 MTP2 + legacy capacity bundle</text>
+<polyline points="100.00,376.36 272.50,323.70 445.00,295.21 617.50,293.04 790.00,286.24 962.50,272.21 1135.00,276.95" fill="none" stroke="#ea580c" stroke-width="2.5"/>
+<circle cx="100.00" cy="376.36" r="3.5" fill="#ea580c"/>
+<circle cx="272.50" cy="323.70" r="3.5" fill="#ea580c"/>
+<circle cx="445.00" cy="295.21" r="3.5" fill="#ea580c"/>
+<circle cx="617.50" cy="293.04" r="3.5" fill="#ea580c"/>
+<circle cx="790.00" cy="286.24" r="3.5" fill="#ea580c"/>
+<circle cx="962.50" cy="272.21" r="3.5" fill="#ea580c"/>
+<circle cx="1135.00" cy="276.95" r="3.5" fill="#ea580c"/>
+<line x1="640" y1="108" x2="664" y2="108" stroke="#0891b2" stroke-width="3"/>
+<text x="671" y="112" font-size="12" font-family="sans-serif">CPU8 MTP2 + legacy capacity bundle</text>
+<polyline points="100.00,337.59 272.50,280.95 445.00,234.95 617.50,225.11 790.00,226.58 962.50,235.16 1135.00,248.86" fill="none" stroke="#0891b2" stroke-width="2.5"/>
+<circle cx="100.00" cy="337.59" r="3.5" fill="#0891b2"/>
+<circle cx="272.50" cy="280.95" r="3.5" fill="#0891b2"/>
+<circle cx="445.00" cy="234.95" r="3.5" fill="#0891b2"/>
+<circle cx="617.50" cy="225.11" r="3.5" fill="#0891b2"/>
+<circle cx="790.00" cy="226.58" r="3.5" fill="#0891b2"/>
+<circle cx="962.50" cy="235.16" r="3.5" fill="#0891b2"/>
+<circle cx="1135.00" cy="248.86" r="3.5" fill="#0891b2"/>
+<line x1="100" y1="133" x2="124" y2="133" stroke="#4f46e5" stroke-width="3"/>
+<text x="131" y="137" font-size="12" font-family="sans-serif">CPU8 MTP2 + KV768 only</text>
+<polyline points="100.00,362.14 272.50,311.00 445.00,274.86 617.50,263.56 790.00,260.41 962.50,234.85 1135.00,224.59" fill="none" stroke="#4f46e5" stroke-width="2.5"/>
+<circle cx="100.00" cy="362.14" r="3.5" fill="#4f46e5"/>
+<circle cx="272.50" cy="311.00" r="3.5" fill="#4f46e5"/>
+<circle cx="445.00" cy="274.86" r="3.5" fill="#4f46e5"/>
+<circle cx="617.50" cy="263.56" r="3.5" fill="#4f46e5"/>
+<circle cx="790.00" cy="260.41" r="3.5" fill="#4f46e5"/>
+<circle cx="962.50" cy="234.85" r="3.5" fill="#4f46e5"/>
+<circle cx="1135.00" cy="224.59" r="3.5" fill="#4f46e5"/>
+<line x1="640" y1="133" x2="664" y2="133" stroke="#65a30d" stroke-width="3"/>
+<text x="671" y="137" font-size="12" font-family="sans-serif">CPU8 MTP2 + maxseq24 only</text>
+<polyline points="100.00,345.00 272.50,282.17 445.00,235.86 617.50,234.69 790.00,233.89 962.50,232.56 1135.00,234.79" fill="none" stroke="#65a30d" stroke-width="2.5"/>
+<circle cx="100.00" cy="345.00" r="3.5" fill="#65a30d"/>
+<circle cx="272.50" cy="282.17" r="3.5" fill="#65a30d"/>
+<circle cx="445.00" cy="235.86" r="3.5" fill="#65a30d"/>
+<circle cx="617.50" cy="234.69" r="3.5" fill="#65a30d"/>
+<circle cx="790.00" cy="233.89" r="3.5" fill="#65a30d"/>
+<circle cx="962.50" cy="232.56" r="3.5" fill="#65a30d"/>
+<circle cx="1135.00" cy="234.79" r="3.5" fill="#65a30d"/>
+</svg>

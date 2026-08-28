@@ -60,5 +60,5 @@
 <circle cx="483.48" cy="359.31" r="4" fill="#059669"/>
 <circle cx="885.00" cy="271.13" r="4" fill="#059669"/>
 <line x1="482" y1="52" x2="506" y2="52" stroke="#059669" stroke-width="3"/>
-<text x="512" y="56" font-size="13" font-family="sans-serif">CPU8 MTP2 + KV tuned</text>
+<text x="512" y="56" font-size="13" font-family="sans-serif">CPU8 MTP2 + KV768 + max-seqs24</text>
 </svg>

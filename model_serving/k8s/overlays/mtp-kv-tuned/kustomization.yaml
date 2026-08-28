@@ -14,9 +14,21 @@ patches:
       - op: replace
         path: /spec/template/metadata/labels/serving-variant
         value: mtp-kv-tuned
+      - op: test
+        path: /spec/template/spec/containers/0/args/12
+        value: --max-num-seqs
+      - op: test
+        path: /spec/template/spec/containers/0/args/13
+        value: "20"
       - op: replace
         path: /spec/template/spec/containers/0/args/13
         value: "24"
+      - op: test
+        path: /spec/template/spec/containers/0/args/16
+        value: --kv-cache-memory-bytes
+      - op: test
+        path: /spec/template/spec/containers/0/args/17
+        value: "536870912"
       - op: replace
         path: /spec/template/spec/containers/0/args/17
         value: "805306368"

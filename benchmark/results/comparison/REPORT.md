@@ -1,4 +1,4 @@
-# Baseline vs MTP vs MTP+KV 자동 비교
+# Baseline vs MTP vs capacity bundle 자동 비교
 
 ## 검증
 
@@ -8,9 +8,11 @@
 - 정식 phase의 UTC wall clock과 monotonic timer 오차가 1%/5초 이내이며 metric scrape error가 없음
 - 전체 OOM kill 증가량: `0`
 
+`mtp-kv-tuned`은 역사적인 artifact ID다. 실제 변경은 KV `512→768MiB`와 `max-num-seqs 20→24`를 함께 적용한 capacity bundle이며 KV-only 실험이 아니다.
+
 ## 결과
 
-| C | Baseline / MTP / Combined output tok/s | Combined vs base | Baseline / Combined E2E p95 | Combined vs base | Base / MTP / Combined peak wait | Combined acceptance |
+| C | Baseline / MTP / Bundle output tok/s | Bundle vs base | Baseline / Bundle E2E p95 | Bundle vs base | Base / MTP / Bundle peak wait | Bundle acceptance |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1 | 5.16 / 7.80 / 7.43 | +44.0% | 19.00s / 15.36s | -19.2% | 0 / 0 / 0 | 76.7% |
 | 2 | 7.64 / 9.99 / 10.01 | +31.0% | 22.32s / 19.25s | -13.8% | 0 / 0 / 0 | 76.1% |

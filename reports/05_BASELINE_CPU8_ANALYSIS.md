@@ -1,5 +1,7 @@
 # Baseline 단일 변경 분석: CPU limit 6 → 8
 
+> 이 문서는 CPU quota 단일 변경 A/B다. MTP와 KV/max-seqs 분리 실험을 포함한 최종 결론은 [최종 종합 분석](07_FINAL_COMPREHENSIVE_ANALYSIS.md)을 따른다.
+
 ## 결론
 
 현재 Apple M4 로컬 환경에서 baseline의 Kubernetes container CPU limit만 `6`에서 `8`로 올리는 변경은 채택할 가치가 있다. 동일한 100개 prompt를 동시성 `1, 2, 5, 10, 20, 50, 100`에서 각각 실행한 최신 결과에서 output throughput은 7개 구간 모두 `+11.7~24.8%` 개선됐다. 고정 출력 44,800 tokens의 phase 시간 합은 `4,598.07초 → 3,840.71초`로 16.5% 줄었고 합산 output throughput은 `9.74 → 11.66 token/s`, 즉 19.7% 증가했다.
@@ -103,9 +105,9 @@ C=10에서 평균 CPU는 `5.52 → 6.89`, output throughput은 23.9% 증가했�
 
 이 장비와 현재 모델·워크로드에서는 baseline 기본 overlay를 보존하고 `baseline-cpu8` overlay를 성능 실험용 권장값으로 사용한다. 10 vCPU 전부를 Pod limit으로 주지 않고 8만 할당해 Kind control-plane, kubelet, container runtime과 benchmark client가 사용할 여유를 남긴다.
 
-CPU 8은 “가능한 유일한 최적화”가 아니다. 이번에 실제 검증한 한 필드 변경 중 가장 직접적인 개선이다. weight quantization, OpenMP thread/affinity, scheduler/KV 조합은 별도 변수를 바꾸므로 독립 A/B로 검증해야 한다. FP8 KV cache는 Apple M4/ARM64의 vLLM CPU backend가 요구 kernel을 지원하지 않아 적용 실패했으며, 상세 이력은 [FP8 KV 실패 리포트](03_FAILED_OPTIMIZATION_FP8_KV.md)에 보존돼 있다. MTP와 KV tuning의 효과·역효과는 [기존 최적화 리포트](04_OPTIMIZATION_FINAL_ANALYSIS.md)에서 비교한다.
+CPU 8은 “가능한 유일한 최적화”가 아니다. 이번에 실제 검증한 한 필드 변경 중 가장 직접적인 개선이다. weight quantization, OpenMP thread/affinity, scheduler/KV 조합은 별도 변수를 바꾸므로 독립 A/B로 검증해야 한다. FP8 KV cache는 Apple M4/ARM64의 vLLM CPU backend가 요구 kernel을 지원하지 않아 적용 실패했으며, 상세 이력은 [FP8 KV 실패 리포트](03_FAILED_OPTIMIZATION_FP8_KV.md)에 보존돼 있다. MTP와 legacy capacity bundle의 효과·역효과는 [기존 최적화 리포트](04_OPTIMIZATION_FINAL_ANALYSIS.md)에서 비교한다.
 
-후속으로 CPU limit 8을 고정한 채 MTP와 KV tuning을 다시 2,100건 비교했다. 저동시성에서는 MTP가 유리했지만 지속적인 C≥10의 범용 기본값은 여전히 baseline-cpu8이었으며, 상세 결과는 [CPU8 MTP·KV 분석 리포트](06_CPU8_MTP_KV_ANALYSIS.md)에 있다.
+후속으로 CPU limit 8을 고정한 채 MTP와 capacity bundle을 다시 2,100건 비교했다. 저동시성에서는 MTP가 유리했지만 지속적인 C≥10의 보수적 기본값은 baseline-cpu8이었으며, 상세 결과는 [CPU8 MTP·capacity bundle 분석 리포트](06_CPU8_MTP_KV_ANALYSIS.md)에 있다.
 
 ## 시간이 더 있다면
 

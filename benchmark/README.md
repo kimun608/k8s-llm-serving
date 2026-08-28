@@ -1,4 +1,4 @@
-# 100-request CPU vLLM baseline benchmark
+# 100-request CPU vLLM serving benchmark
 
 이 폴더는 배포된 `vllm-cpu` Kubernetes Service에 동일한 100개 요청을 보내고, 동시성 증가에 따른 지연시간·처리량·서버 포화를 재현 가능하게 측정합니다. 모델 정답률을 평가하는 실험이 아니라 **추론 서빙 성능**을 평가하는 실험입니다.
 
@@ -53,7 +53,7 @@ make benchmark-data
 
 일반 KV cache는 각 요청의 autoregressive decoding에서 과거 token을 매번 다시 계산하지 않기 위한 필수 상태이므로 비활성화하지 않습니다. 요청 완료 시 해당 KV block은 회수됩니다. 요청 간 동일 prefix를 재사용하는 Automatic Prefix Caching(APC)은 베이스라인 Deployment에서 `--no-enable-prefix-caching`으로 명시적으로 끕니다. 따라서 동시성 단계 사이에 별도의 cache flush는 필요하지 않으며, 측정 결과에서도 prefix cache hit 증가량이 0인지 확인합니다.
 
-MTP 비교는 같은 Qwen3.5-0.8B checkpoint를 사용해 `MTP off → on`만 변경합니다. 후속 overlay는 Qwen 공식 vLLM recipe의 `{"method":"qwen3_next_mtp","num_speculative_tokens":2}`를 시작점으로 사용합니다. MTP는 cross-request cache가 아니라 native prediction head가 다음 token 후보를 제안하고 target model이 검증하는 speculative decoding입니다.
+MTP 비교는 같은 Qwen3.5-0.8B checkpoint를 사용해 `MTP off → on`만 변경했습니다. 완료된 MTP overlay는 Qwen 공식 vLLM recipe의 `{"method":"qwen3_next_mtp","num_speculative_tokens":2}`를 사용합니다. MTP는 cross-request cache가 아니라 native prediction head가 다음 token 후보를 제안하고 target model이 검증하는 speculative decoding입니다.
 
 ## 선정 지표
 
@@ -68,7 +68,7 @@ MTP 비교는 같은 Qwen3.5-0.8B checkpoint를 사용해 `MTP off → on`만 �
 | Request throughput | request/s | 정상 완료 요청 수 ÷ 단계 실측 시간 |
 | Output throughput | token/s | 정상 completion token 합 ÷ 단계 실측 시간 |
 
-평균만으로는 대기열에 의한 일부 느린 요청을 숨길 수 있으므로 latency는 p50·p95·p99를 함께 봅니다. TTFT는 입력 처리와 스케줄러 대기 영향을, TPOT는 첫 토큰 이후 디코딩 속도를 더 잘 분리합니다.
+평균만으로는 대기열에 의한 일부 느린 요청을 숨길 수 있으므로 latency는 p50·p95·p99를 함께 봅니다. TTFT는 입력 처리와 스케줄러 대기 영향을, TPOT는 첫 토큰 이후 디코딩 속도를 더 잘 분리합니다. 원시 request JSONL은 계산 전 값인 `tpot_seconds`를 저장하고, 집계 `summary.csv/json`은 단위가 드러나는 `tpot_ms_mean/p50/p95/p99` 필드로 변환해 저장합니다.
 
 ### 2. 원인 분석 지표(vLLM `/metrics`와 Pod cgroup)
 
@@ -129,7 +129,7 @@ python3 benchmark/scripts/analyze.py \
   --input benchmark/results/baseline
 ```
 
-기본 실행기는 `kubectl port-forward service/vllm-cpu 18000:8000`을 시작하고 종료 시 정리합니다. 이미 접근 가능한 주소가 있다면 `--base-url http://127.0.0.1:8000`처럼 지정할 수 있습니다.
+기본 실행기는 `kubectl port-forward service/vllm-cpu 18000:8000`을 시작하고 종료 시 정리합니다. 이미 접근 가능한 주소가 있다면 `--base-url http://127.0.0.1:8000`처럼 지정할 수 있지만, 이 모드에는 검증 가능한 local Deployment provenance가 없으므로 Pod cgroup 수집을 자동으로 끄고 `benchmark-compare-all`의 정식 로컬 K8s 비교 대상에서 제외합니다.
 
 `make benchmark-*` 정식 target은 장시간 실행이 중단돼 메모리에 있던 phase를 잃지 않도록 처음 4개 phase를 저장하고, 체크섬·Pod 실행 인자·모델 identity를 다시 검증한 뒤 남은 3개 phase를 `--resume`으로 이어서 실행합니다. 임의 중단 뒤에도 `--resume`을 직접 사용하면 성공한 100건과 raw/metric 파일이 모두 존재하는 phase만 건너뜁니다. 불완전한 phase나 다른 배포에는 재개하지 않습니다.
 
@@ -168,7 +168,7 @@ results/baseline/
 
 ## 최적화 재측정과 비교
 
-baseline을 보존한 채 native MTP와 MTP+KV tuned overlay를 각각 배포해 같은 700건을 실행합니다.
+baseline을 보존한 채 native MTP와 capacity bundle을 각각 배포해 같은 700건을 실행합니다. capacity bundle은 KV `512→768MiB`와 `max-num-seqs` `20→24`를 동시에 적용하며, 아래 `mtp-kv-tuned` 명령·결과 경로는 재현성을 위해 유지한 legacy artifact ID입니다. 따라서 MTP 대비 차이는 bundle 전체의 관측 결과이며 KV-only 인과효과가 아닙니다.
 
 ```bash
 rerun_root="$(mktemp -d /tmp/k8s-llm-results.XXXXXX)"
@@ -221,9 +221,9 @@ python3 benchmark/scripts/run_benchmark.py \
 
 교체 전 request JSONL, metric CSV, phase JSON과 제외 사유는 결과 폴더의 `excluded/` 아래에 자동 보존됩니다.
 
-### CPU limit 8 고정 MTP·KV 비교
+### CPU limit 8 고정 MTP·capacity bundle 비교
 
-완료된 `baseline-cpu8`을 기준으로 CPU와 memory를 고정하고 MTP, 이어서 BF16 KV capacity/scheduler 변경을 적용합니다.
+완료된 `baseline-cpu8`을 기준으로 Pod CPU·memory request/limit을 고정하고 MTP, 이어서 capacity bundle(KV `512→768MiB` + `max-num-seqs` `20→24`)을 적용합니다. `mtp-kv-tuned-cpu8`은 legacy target 이름이며 두 변경의 개별 인과효과를 분리하는 KV-only 실험이 아닙니다.
 
 ```bash
 make deploy-mtp-cpu8
@@ -237,7 +237,50 @@ make benchmark-mtp-kv-tuned-cpu8
 make benchmark-compare-cpu8-optimizations
 ```
 
-`benchmark-compare-cpu8-optimizations`는 세 설정의 총 2,100건, workload/token counter/timer/metric scrape와 rendered container 명세를 검증합니다. 실측 표와 그래프는 [results/comparison-cpu8-optimizations/REPORT.md](results/comparison-cpu8-optimizations/REPORT.md), 원인과 권고는 [CPU8 MTP·KV 분석 리포트](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
+`benchmark-compare-cpu8-optimizations`는 세 설정의 총 2,100건, workload/token counter/timer/metric scrape와 rendered container 명세를 검증합니다. 실측 표와 그래프는 [results/comparison-cpu8-optimizations/REPORT.md](results/comparison-cpu8-optimizations/REPORT.md), bundle 전체의 관측 결과와 원인·권고는 [CPU8 MTP·capacity bundle 분석 리포트](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
+
+### CPU8 KV × max-num-seqs 분리 실험과 전체 비교
+
+Legacy bundle의 두 변수를 분리하기 위해 CPU8·MTP2를 고정하고 다음 두 설정을 각 700건씩 추가 측정했습니다.
+
+- `mtp-kv768-cpu8`: `max-num-seqs=20`을 유지하고 KV만 `512→768MiB`
+- `mtp-seq24-cpu8`: KV `512MiB`를 유지하고 `max-num-seqs`만 `20→24`
+
+제출용 결과를 덮어쓰지 않는 재실행 예시는 다음과 같습니다.
+
+```bash
+rerun_root="$(mktemp -d /tmp/k8s-llm-results.XXXXXX)"
+
+make deploy-mtp-kv768-cpu8
+make smoke
+make benchmark-mtp-kv768-cpu8 RESULTS_ROOT="$rerun_root"
+
+make deploy-mtp-seq24-cpu8
+make smoke
+make benchmark-mtp-seq24-cpu8 RESULTS_ROOT="$rerun_root"
+```
+
+저장소에 보존한 8개 완료 결과의 전체 검증과 비교는 다음 명령으로 다시 생성합니다.
+
+```bash
+make benchmark-compare-all
+```
+
+`benchmark-compare-all`은 같은 `RESULTS_ROOT` 아래 `baseline`, `baseline-cpu8`, `mtp`, `mtp-cpu8`, 두 legacy bundle과 두 분리 셀까지 8개를 모두 요구합니다. 각 summary를 raw request/metric에서 다시 집계해 stale summary를 거부하고, local port-forward provenance, 동일 Pod image ID와 시작 restart 0도 확인합니다. 따라서 위 임시 root에 신규 두 셀만 실행한 직후에는 종합 비교를 만들 수 없고, 새 root에서 비교하려면 나머지 6개도 그 root에 재실행해야 합니다.
+
+| C | MTP 기준 tok/s | KV-only tok/s (변화) | run/wait | maxseq-only tok/s (변화) | run/wait |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 8.24 | 8.13 (-1.3%) | 1/0 | 8.97 (+8.9%) | 1/0 |
+| 2 | 10.30 | 10.63 (+3.2%) | 2/0 | 12.04 (+16.8%) | 2/0 |
+| 5 | 14.38 | 12.39 (-13.8%) | 5/0 | 14.30 (-0.6%) | 5/0 |
+| 10 | 14.41 | 12.95 (-10.2%) | 8/2 | 14.36 (-0.4%) | 5/5 |
+| 20 | 14.62 | 13.10 (-10.4%) | 8/12 | 14.40 (-1.5%) | 5/15 |
+| 50 | 14.89 | 14.35 (-3.6%) | 8/42 | 14.46 (-2.9%) | 5/45 |
+| 100 | 15.18 | 14.85 (-2.1%) | 8/92 | 14.35 (-5.4%) | 5/95 |
+
+두 신규 run은 각각 `700/700`, 전체 8개 variant는 `5,600/5,600`건 성공했습니다. 모든 phase의 client/server token counter, timer, metric scrape, OOM과 factor별 rendered container 명세도 검증을 통과했습니다. KV-only는 C≥10에서 MTP 기준보다 peak running 최대값을 `5→8`, peak waiting 최대값을 3건 줄였지만 C=10·20 throughput은 `-10.2%`, `-10.4%`였습니다. Maxseq-only는 모든 peak running/peak waiting이 기준과 같고 C=5∼100 throughput도 `-0.4∼-5.4%`(C=5 `-0.6%`)여서 기존 상한 20은 병목이 아니었습니다. C=1·2의 큰 양수는 두 상한 모두 비병목이므로 반복 전에는 run variance로 보수적으로 분류합니다.
+
+원본은 [KV-only REPORT](results/mtp-kv768-cpu8/REPORT.md), [maxseq-only REPORT](results/mtp-seq24-cpu8/REPORT.md), [전체 8개 variant comparison](results/comparison-all/REPORT.md)에 있습니다. 실험 설계와 결론은 [CPU8 factorial README](../optimization/cpu8-factorial/README.md)를 봅니다. `baseline-seq50-cpu8`은 KV가 running을 제한하는 현재 조건에서는 의미가 없어 KV capacity를 확보한 후속 scheduler sweep으로 보류했습니다.
 
 ## 해석 원칙
 
@@ -245,4 +288,5 @@ make benchmark-compare-cpu8-optimizations
 - TTFT만 크게 늘고 TPOT 변화가 작으면 디코딩 자체보다 큐 대기가 주원인일 가능성이 큽니다.
 - TPOT와 CPU 사용량이 함께 악화되면 동시 batch의 연산 경쟁이나 CPU throttling을 확인합니다.
 - KV 사용률 또는 preemption이 상승하면 cache 공간과 `max-num-seqs` 설정을 확인합니다.
+- `max-num-seqs`를 늘렸는데 running/waiting이 그대로라면 상한이 병목이 아니므로 저동시성의 단일-run 상승을 scheduler 효과로 귀속하지 않습니다.
 - 단 한 번의 로컬 측정은 OS background load 영향을 받으므로 최종 최적화 비교에서는 같은 설정을 여러 번 반복하고 중앙값/신뢰구간을 추가하는 것이 바람직합니다.
