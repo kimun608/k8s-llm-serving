@@ -409,6 +409,53 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
             "{avg_pod_cpu_cores:.2f} | {peak_pod_memory_gib:.2f}GiB |".format(**row)
         )
 
+    experiment = manifest.get("config", {}).get("experiment", "baseline")
+    if experiment != "baseline":
+        acceptance_values = [
+            row["spec_acceptance_percent"]
+            for row in rows
+            if math.isfinite(row["spec_acceptance_percent"])
+        ]
+        acceptance_text = (
+            f"{min(acceptance_values):.1f}~{max(acceptance_values):.1f}%"
+            if acceptance_values
+            else "N/A"
+        )
+        report = f"""# CPU vLLM 부하 측정 자동 리포트: {experiment}
+
+## 검증 요약
+
+- 완료 요청: `{sum(row['successes'] for row in rows)}/{sum(row['requests'] for row in rows)}`
+- 동시성: `{', '.join(str(row['concurrency']) for row in rows)}`; 각 단계의 prompt 100건과 출력 64 tokens는 동일함
+- 최고 output throughput: C=`{best['concurrency']}`, `{best['output_token_throughput_tps']:.2f} token/s`
+- 최초 scheduler waiting: C=`{first_wait['concurrency'] if first_wait else '없음'}`
+- 전체 prefix hit / preemption / OOM kill 증가량: `{total_prefix_hits:.0f} / {total_preemptions:.0f} / {total_oom:.0f}`
+- MTP draft acceptance 범위: `{acceptance_text}`
+- 최대 peak running / waiting / KV / RAM: `{max(row['peak_running_requests'] for row in rows):.0f} / {max(row['peak_waiting_requests'] for row in rows):.0f} / {max(row['peak_kv_cache_percent'] for row in rows):.1f}% / {max(row['peak_pod_memory_gib'] for row in rows):.2f}GiB`
+
+## 결과
+
+{chr(10).join(table_lines)}
+
+## 그래프
+
+- [E2E latency](charts/e2e-latency.svg)
+- [TTFT](charts/ttft.svg)
+- [TPOT](charts/tpot.svg)
+- [Request throughput](charts/request-throughput.svg)
+- [Token throughput](charts/token-throughput.svg)
+- [Output token throughput](charts/output-token-throughput.svg)
+- [Scheduler running/waiting](charts/server-pressure.svg)
+- [KV cache](charts/kv-cache.svg)
+- [Pod CPU](charts/resources.svg)
+- [Pod memory](charts/memory.svg)
+- [Source별 prompt tokens](charts/prompt-tokens-by-source.svg)
+
+이 문서는 해당 설정의 원시 요청과 1초 metric 시계열에서 자동 생성한 사실표다. baseline과의 before/after 및 개선·악화 원인은 [`reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`](../../../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에서 교차 분석한다.
+"""
+        (input_dir / "REPORT.md").write_text(report, encoding="utf-8")
+        return
+
     input_validation = manifest["input_token_validation"]
     report = f"""# CPU vLLM 베이스라인 부하 측정 리포트
 

@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../mtp
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: vllm-cpu
+    patch: |-
+      - op: replace
+        path: /spec/template/metadata/labels/serving-variant
+        value: mtp-kv-tuned
+      - op: replace
+        path: /spec/template/spec/containers/0/args/13
+        value: "24"
+      - op: replace
+        path: /spec/template/spec/containers/0/args/17
+        value: "805306368"

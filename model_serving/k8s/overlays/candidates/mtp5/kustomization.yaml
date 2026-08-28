@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../baseline
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: vllm-cpu
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/labels/serving-variant
+        value: candidate-mtp5
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --speculative-config
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: '{"method":"mtp","num_speculative_tokens":5}'

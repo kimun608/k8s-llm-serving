@@ -6,6 +6,7 @@ PROJECT_ROOT := $(CURDIR)
 K8S_DIR := $(PROJECT_ROOT)/k8s
 MODEL_SERVING_DIR := $(PROJECT_ROOT)/model_serving
 BENCHMARK_DIR := $(PROJECT_ROOT)/benchmark
+RESULTS_ROOT ?= $(BENCHMARK_DIR)/results
 KIND := $(PROJECT_ROOT)/bin/kind
 KIND_VERSION := v0.32.0
 CLUSTER_NAME := project-process
@@ -14,7 +15,7 @@ IMAGE_REPOSITORY := local/vllm-cpu
 IMAGE_TAG := qwen3.5-0.8b-vllm0.26.0
 IMAGE := $(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
-.PHONY: help preflight install-kind image cluster load verify-cluster deploy wait status smoke benchmark-data benchmark-check benchmark-baseline benchmark-analyze all clean-cluster
+.PHONY: help preflight install-kind image cluster load verify-cluster deploy deploy-mtp deploy-mtp-kv-tuned wait status smoke benchmark-data benchmark-check benchmark-baseline benchmark-mtp benchmark-mtp-kv-tuned benchmark-analyze benchmark-compare all clean-cluster
 
 help:
 	@echo "make preflight       Check the local environment"
@@ -24,13 +25,18 @@ help:
 	@echo "make load            Load the local image into Kind"
 	@echo "make verify-cluster  Verify node join, network, and image presence"
 	@echo "make deploy          Apply the baseline Kubernetes resources"
+	@echo "make deploy-mtp      Apply native MTP optimization and wait"
+	@echo "make deploy-mtp-kv-tuned  Apply MTP + 768MiB KV/24-seq optimization and wait"
 	@echo "make wait            Wait until the vLLM Deployment is available"
 	@echo "make status          Show nodes, Pods, Service, and recent events"
 	@echo "make smoke           Test /health, /v1/models, and one completion"
 	@echo "make benchmark-data  Build the fixed 100-prompt public benchmark workload"
 	@echo "make benchmark-check Run a 20-request concurrency-20 functional check"
 	@echo "make benchmark-baseline  Run 100 requests at C=1,2,5,10,20,50,100 and analyze"
+	@echo "make benchmark-mtp       Run the same 700-request matrix against MTP"
+	@echo "make benchmark-mtp-kv-tuned  Run the same matrix against both optimizations"
 	@echo "make benchmark-analyze   Rebuild tables, SVG charts, and the report"
+	@echo "make benchmark-compare   Validate and compare baseline, MTP, and final results"
 	@echo "make all             Run install-kind, image, cluster, load, deploy, wait"
 	@echo "make clean-cluster   Delete only the project-process Kind cluster"
 
@@ -55,6 +61,14 @@ verify-cluster:
 
 deploy:
 	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/baseline"
+
+deploy-mtp:
+	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/mtp"
+	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=300s
+
+deploy-mtp-kv-tuned:
+	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/mtp-kv-tuned"
+	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=300s
 
 wait:
 	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=900s
@@ -81,11 +95,42 @@ benchmark-baseline: benchmark-data
 	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
 		--config "$(BENCHMARK_DIR)/config/baseline.json" \
 		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
-		--output "$(BENCHMARK_DIR)/results/baseline"
-	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(BENCHMARK_DIR)/results/baseline"
+		--output "$(RESULTS_ROOT)/baseline" --max-new-phases 4
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/baseline.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/baseline" --resume
+	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/baseline"
+
+benchmark-mtp: benchmark-data
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp" --max-new-phases 4
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp" --resume
+	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/mtp"
+
+benchmark-mtp-kv-tuned: benchmark-data
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp-kv-tuned.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp-kv-tuned" --max-new-phases 4
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp-kv-tuned.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp-kv-tuned" --resume
+	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/mtp-kv-tuned"
 
 benchmark-analyze:
-	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(BENCHMARK_DIR)/results/baseline"
+	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/baseline"
+
+benchmark-compare:
+	python3 "$(BENCHMARK_DIR)/scripts/compare.py" \
+		--results-root "$(RESULTS_ROOT)" \
+		--output "$(RESULTS_ROOT)/comparison"
 
 all: install-kind image cluster load verify-cluster deploy wait status
 

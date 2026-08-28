@@ -275,6 +275,23 @@ def main() -> int:
         "workload_sha256": workload_digest,
         "sources": source_metadata,
     }
+    # Rebuilding an unchanged deterministic workload should not create a noisy
+    # timestamp-only Git diff. Preserve the original creation time when every
+    # substantive manifest field is identical.
+    if args.manifest.is_file():
+        try:
+            previous_manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            previous_manifest = None
+        if isinstance(previous_manifest, dict):
+            previous_without_time = {
+                key: value for key, value in previous_manifest.items() if key != "created_at_utc"
+            }
+            current_without_time = {
+                key: value for key, value in manifest.items() if key != "created_at_utc"
+            }
+            if previous_without_time == current_without_time and previous_manifest.get("created_at_utc"):
+                manifest["created_at_utc"] = previous_manifest["created_at_utc"]
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
     args.manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 

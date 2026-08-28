@@ -86,6 +86,25 @@ def http_json(url: str, *, data: dict | None = None, timeout: float = 30) -> Any
     return json.loads(http_bytes(url, data=data, timeout=timeout))
 
 
+def model_signature(model_info: Any) -> list[dict[str, Any]]:
+    """Return only stable model identity/capability fields from /v1/models."""
+    if not isinstance(model_info, dict):
+        return []
+    signature = []
+    for item in model_info.get("data", []):
+        if not isinstance(item, dict):
+            continue
+        signature.append(
+            {
+                "id": item.get("id"),
+                "root": item.get("root"),
+                "owned_by": item.get("owned_by"),
+                "max_model_len": item.get("max_model_len"),
+            }
+        )
+    return sorted(signature, key=lambda item: str(item.get("id")))
+
+
 def wait_healthy(base_url: str, timeout_seconds: float = 60) -> None:
     deadline = time.monotonic() + timeout_seconds
     last_error: Exception | None = None
@@ -547,6 +566,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--concurrencies", nargs="+", type=int)
     parser.add_argument("--limit", type=int, help="Run only the first N prompts for a quick functional check")
     parser.add_argument("--no-cgroup", action="store_true", help="Skip kubectl cgroup collection")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume a matching interrupted run and skip phases already saved successfully",
+    )
+    parser.add_argument(
+        "--max-new-phases",
+        type=int,
+        help="Safely stop after N newly completed phases; resume later with --resume",
+    )
     return parser.parse_args()
 
 
@@ -562,33 +591,84 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
     token_values = list(input_token_counts.values())
 
     concurrencies = args.concurrencies or [int(value) for value in config["concurrencies"]]
-    manifest: dict[str, Any] = {
-        "schema_version": 1,
-        "status": "running",
-        "started_at_utc": utc_now(),
-        "finished_at_utc": None,
-        "base_url": base_url,
-        "config": config,
-        "config_sha256": sha256_file(args.config),
-        "prompts_file": str(args.prompts),
-        "prompts_sha256": sha256_file(args.prompts),
-        "prompt_count": len(prompts),
-        "input_token_validation": {
-            "minimum": min(token_values),
-            "maximum": max(token_values),
-            "mean": sum(token_values) / len(token_values),
-            "counts_by_prompt_id": input_token_counts,
-        },
-        "concurrencies": concurrencies,
-        "model_endpoint": model_info,
-        "server_version": server_version,
-        "environment": system_metadata(config["namespace"]),
-        "phases": [],
+    config_sha256 = sha256_file(args.config)
+    prompts_sha256 = sha256_file(args.prompts)
+    current_environment = system_metadata(config["namespace"])
+    input_validation = {
+        "minimum": min(token_values),
+        "maximum": max(token_values),
+        "mean": sum(token_values) / len(token_values),
+        "counts_by_prompt_id": input_token_counts,
     }
+
+    if args.resume and manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected_values = {
+            "config_sha256": config_sha256,
+            "prompts_sha256": prompts_sha256,
+            "prompt_count": len(prompts),
+            "concurrencies": concurrencies,
+            "input_token_validation": input_validation,
+            "server_version": server_version,
+        }
+        for key, expected_value in expected_values.items():
+            if manifest.get(key) != expected_value:
+                raise RuntimeError(f"Cannot resume: manifest {key} does not match the current run")
+        if model_signature(manifest.get("model_endpoint")) != model_signature(model_info):
+            raise RuntimeError("Cannot resume: served model identity or max context length changed")
+
+        previous_container = manifest.get("environment", {}).get("kubernetes", {}).get("container")
+        current_container = current_environment.get("kubernetes", {}).get("container")
+        if previous_container != current_container:
+            raise RuntimeError("Cannot resume: deployed container image, args, resources, or env changed")
+
+        completed: set[int] = set()
+        for phase in manifest.get("phases", []):
+            concurrency = int(phase["concurrency"])
+            if concurrency in completed:
+                raise RuntimeError(f"Cannot resume: duplicate saved phase C={concurrency}")
+            if int(phase.get("success_count", 0)) != len(prompts) or int(phase.get("failure_count", 0)) != 0:
+                raise RuntimeError(f"Cannot resume: saved phase C={concurrency} is incomplete")
+            for file_key in ("requests_file", "metrics_file"):
+                saved_file = args.output / phase[file_key]
+                if not saved_file.is_file():
+                    raise RuntimeError(f"Cannot resume: missing {saved_file}")
+            completed.add(concurrency)
+        if not completed.issubset(set(concurrencies)):
+            raise RuntimeError("Cannot resume: saved phase is not in the requested concurrency matrix")
+        manifest.setdefault("resumed_at_utc", []).append(utc_now())
+        manifest["status"] = "running"
+        manifest["finished_at_utc"] = None
+        manifest.pop("total_failures", None)
+        print(f"Resuming: completed phases {sorted(completed)} will be skipped", flush=True)
+    else:
+        completed = set()
+        manifest = {
+            "schema_version": 1,
+            "status": "running",
+            "started_at_utc": utc_now(),
+            "finished_at_utc": None,
+            "base_url": base_url,
+            "config": config,
+            "config_sha256": config_sha256,
+            "prompts_file": str(args.prompts),
+            "prompts_sha256": prompts_sha256,
+            "prompt_count": len(prompts),
+            "input_token_validation": input_validation,
+            "concurrencies": concurrencies,
+            "model_endpoint": model_info,
+            "server_version": server_version,
+            "environment": current_environment,
+            "phases": [],
+        }
     write_json(manifest_path, manifest)
 
-    failures = 0
+    failures = sum(int(phase.get("failure_count", 0)) for phase in manifest["phases"])
+    new_phase_count = 0
     for concurrency in concurrencies:
+        if concurrency in completed:
+            print(f"[concurrency={concurrency}] skipped (already completed)", flush=True)
+            continue
         print(f"[concurrency={concurrency}] warmup ({config['warmup_requests']} requests)", flush=True)
         warmup_prompts = prompts[: min(int(config["warmup_requests"]), len(prompts))]
         with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(warmup_prompts))) as executor:
@@ -626,7 +706,16 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
                 executor.submit(stream_completion, base_url, config, prompt, concurrency)
                 for prompt in prompts
             ]
-            results = [future.result() for future in concurrent.futures.as_completed(futures)]
+            results = []
+            for future in concurrent.futures.as_completed(futures):
+                results.append(future.result())
+                if len(results) % 5 == 0 or len(results) == len(prompts):
+                    elapsed = time.perf_counter() - phase_started
+                    print(
+                        f"[concurrency={concurrency}] progress "
+                        f"{len(results)}/{len(prompts)} elapsed={elapsed:.1f}s",
+                        flush=True,
+                    )
         duration = time.perf_counter() - phase_started
         phase_finished_utc = utc_now()
         sampler.stop()
@@ -665,11 +754,23 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             flush=True,
         )
         wait_idle(base_url)
+        new_phase_count += 1
+        if args.max_new_phases is not None and new_phase_count >= args.max_new_phases:
+            break
 
-    manifest["status"] = "completed" if failures == 0 else "completed_with_failures"
+    saved_concurrencies = {int(phase["concurrency"]) for phase in manifest["phases"]}
+    missing_concurrencies = [value for value in concurrencies if value not in saved_concurrencies]
+    if missing_concurrencies:
+        manifest["status"] = "paused_by_phase_limit"
+        manifest["remaining_concurrencies"] = missing_concurrencies
+    else:
+        manifest["status"] = "completed" if failures == 0 else "completed_with_failures"
+        manifest.pop("remaining_concurrencies", None)
     manifest["finished_at_utc"] = utc_now()
     manifest["total_failures"] = failures
     write_json(manifest_path, manifest)
+    if missing_concurrencies:
+        print(f"Paused safely; resume remaining phases {missing_concurrencies} with --resume", flush=True)
     return 0 if failures == 0 else 2
 
 
@@ -686,7 +787,9 @@ def main() -> int:
         raise RuntimeError(f"Expected {expected} prompts, found {len(prompts)}")
     if any(value < 1 for value in (args.concurrencies or config["concurrencies"])):
         raise ValueError("All concurrency values must be positive")
-    if args.output.exists() and any(args.output.iterdir()):
+    if args.max_new_phases is not None and args.max_new_phases < 1:
+        raise ValueError("--max-new-phases must be at least 1")
+    if args.output.exists() and any(args.output.iterdir()) and not args.resume:
         raise RuntimeError(f"Output directory is not empty: {args.output}")
     args.output.mkdir(parents=True, exist_ok=True)
 

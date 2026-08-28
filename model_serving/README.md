@@ -16,7 +16,10 @@ model_serving/
 │   │   ├── service.yaml
 │   │   └── kustomization.yaml
 │   └── overlays/
-│       └── baseline/kustomization.yaml
+│       ├── baseline/kustomization.yaml
+│       ├── mtp/kustomization.yaml
+│       ├── mtp-kv-tuned/kustomization.yaml
+│       └── candidates/              # 지원 여부 사전 검증용
 └── scripts/
     ├── preflight.sh
     ├── status.sh
@@ -162,3 +165,5 @@ kubectl -n llm-serving port-forward service/vllm-cpu 8000:8000
 | Chat completion | 16 output tokens 생성 성공 |
 
 실행 데이터는 `../results/`에 보관합니다. 다음 단계에서는 이 Service에 동일한 프롬프트 100건을 동시성 `1, 2, 5, 10, 20, 50, 100`으로 전송합니다.
+
+최적화 overlay의 선정 근거, 고정 조건, 배포 순서는 [`../optimization/README.md`](../optimization/README.md)를 따릅니다. `baseline`은 그대로 보존하고 MTP와 MTP+KV tuned를 별도 overlay로 적용합니다.

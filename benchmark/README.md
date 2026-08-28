@@ -101,6 +101,13 @@ make smoke
 make benchmark-baseline
 ```
 
+저장소에는 제출용 실측 결과가 이미 들어 있으므로 재실행할 때는 이를 덮어쓰지 않는 새 root를 지정합니다.
+
+```bash
+rerun_root="$(mktemp -d /tmp/k8s-llm-results.XXXXXX)"
+make benchmark-baseline RESULTS_ROOT="$rerun_root"
+```
+
 macOS에서는 이 Make target이 자동으로 `caffeinate -dimsu`를 사용합니다. 장시간 측정 중 노트북이 sleep 상태에 들어가면 Docker VM과 client timer가 함께 멈추고 E2E/TTFT 및 1초 metric time series가 왜곡되기 때문입니다. 다른 OS에서는 별도 명령 없이 그대로 실행합니다. 전원 연결을 권장하며, 실행 중 Docker Desktop의 CPU/memory 설정을 변경하지 않습니다.
 
 스크립트를 직접 실행할 수도 있습니다.
@@ -109,13 +116,22 @@ macOS에서는 이 Make target이 자동으로 `caffeinate -dimsu`를 사용합�
 python3 benchmark/scripts/run_benchmark.py \
   --config benchmark/config/baseline.json \
   --prompts benchmark/data/prompts.jsonl \
-  --output benchmark/results/baseline
+  --output benchmark/results/baseline \
+  --max-new-phases 4
+
+python3 benchmark/scripts/run_benchmark.py \
+  --config benchmark/config/baseline.json \
+  --prompts benchmark/data/prompts.jsonl \
+  --output benchmark/results/baseline \
+  --resume
 
 python3 benchmark/scripts/analyze.py \
   --input benchmark/results/baseline
 ```
 
 기본 실행기는 `kubectl port-forward service/vllm-cpu 18000:8000`을 시작하고 종료 시 정리합니다. 이미 접근 가능한 주소가 있다면 `--base-url http://127.0.0.1:8000`처럼 지정할 수 있습니다.
+
+`make benchmark-*` 정식 target은 장시간 실행이 중단돼 메모리에 있던 phase를 잃지 않도록 처음 4개 phase를 저장하고, 체크섬·Pod 실행 인자·모델 identity를 다시 검증한 뒤 남은 3개 phase를 `--resume`으로 이어서 실행합니다. 임의 중단 뒤에도 `--resume`을 직접 사용하면 성공한 100건과 raw/metric 파일이 모두 존재하는 phase만 건너뜁니다. 불완전한 phase나 다른 배포에는 재개하지 않습니다.
 
 짧은 기능 검증은 전체 700건을 수행하지 않습니다.
 
@@ -149,6 +165,29 @@ results/baseline/
 원시 요청 결과에는 모델 응답 본문 대신 식별자, token 수, timing, 상태만 저장합니다. 분석 스크립트는 원시 파일에서 표·SVG 그래프·Markdown 리포트를 다시 생성하므로 수작업으로 수치를 옮기지 않습니다.
 
 현재 완료된 실측 결과는 [results/baseline/REPORT.md](results/baseline/REPORT.md), 과제 제출 관점의 분석은 [../reports/02_BASELINE_BENCHMARK.md](../reports/02_BASELINE_BENCHMARK.md)에서 확인할 수 있습니다.
+
+## 최적화 재측정과 비교
+
+baseline을 보존한 채 native MTP와 MTP+KV tuned overlay를 각각 배포해 같은 700건을 실행합니다.
+
+```bash
+rerun_root="$(mktemp -d /tmp/k8s-llm-results.XXXXXX)"
+
+make deploy
+make benchmark-baseline RESULTS_ROOT="$rerun_root"
+
+make deploy-mtp
+make smoke
+make benchmark-mtp RESULTS_ROOT="$rerun_root"
+
+make deploy-mtp-kv-tuned
+make smoke
+make benchmark-mtp-kv-tuned RESULTS_ROOT="$rerun_root"
+
+make benchmark-compare RESULTS_ROOT="$rerun_root"
+```
+
+`benchmark-compare`는 세 설정의 prompt SHA-256과 고정 config, phase별 100/100 성공, client/server token counter 일치를 먼저 검증합니다. 통과하면 [results/comparison/REPORT.md](results/comparison/REPORT.md), 비교 CSV와 10개 SVG 그래프를 생성합니다. 원인 분석과 적용 실패 후보는 [최종 최적화 리포트](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)를 봅니다.
 
 ## 해석 원칙
 
