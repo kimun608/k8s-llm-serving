@@ -35,7 +35,7 @@ control-plane과 worker는 서로 다른 Docker 컨테이너지만 동일한 `ki
 
 ## 왜 이미지 이름을 master/worker로 나누지 않는가
 
-`local/vllm-cpu:qwen2.5-0.5b-vllm0.26.0`은 애플리케이션 아티팩트입니다. master와 worker는 이미지 종류가 아니라 Kubernetes 노드 역할입니다.
+`local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0`은 애플리케이션 아티팩트입니다. master와 worker는 이미지 종류가 아니라 Kubernetes 노드 역할입니다.
 
 `kind load docker-image`는 동일 이미지를 각 Kind 노드의 containerd에 import합니다. control-plane에도 이미지를 넣어 두지만 control-plane에는 기본 taint가 있고, vLLM Deployment도 worker nodeSelector를 사용하므로 실제 모델 Pod는 worker에서만 실행됩니다.
 
@@ -88,7 +88,7 @@ make load
 
 ```bash
 bin/kind load docker-image \
-  local/vllm-cpu:qwen2.5-0.5b-vllm0.26.0 \
+  local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0 \
   --name project-process
 ```
 
@@ -127,10 +127,10 @@ docker exec project-process-worker crictl images local/vllm-cpu
 |---|---|
 | Kind 설치 | v0.32.0, checksum 검증 성공 |
 | 클러스터 생성 | 39.71초 |
-| 이미지 로드 | 42.29초 |
+| Qwen3.5 이미지 로드 | 46.61초 |
 | control-plane | Ready, `172.18.0.3` |
 | worker | Ready, `172.18.0.2` |
-| 로드 이미지 | 1.64GB, 양쪽 노드에서 확인 |
+| 로드 이미지 | 2.24GB, 양쪽 노드에서 image config ID `53e0d7d41094` 확인 |
 
 ## 제거
 

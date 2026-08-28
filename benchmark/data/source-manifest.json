@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-08-27T21:58:51.220718+00:00",
+  "purpose": "Serving performance workload; model answer quality is not scored.",
+  "seed": 20260828,
+  "samples_per_source": 25,
+  "prompt_count": 100,
+  "source_order": [
+    "gsm8k",
+    "humaneval",
+    "truthfulqa",
+    "longbench_qasper"
+  ],
+  "workload_sha256": "576df81caa41863089adbbe111e083a540291c18fe8f313e9867041f01f3b2aa",
+  "sources": [
+    {
+      "name": "gsm8k",
+      "project_url": "https://github.com/openai/grade-school-math",
+      "download_url": "https://raw.githubusercontent.com/openai/grade-school-math/3101c7d5072418e28b9008a6636bde82a006892c/grade_school_math/data/test.jsonl",
+      "revision": "3101c7d5072418e28b9008a6636bde82a006892c",
+      "cache_file": "gsm8k-test.jsonl",
+      "bytes": 749738,
+      "sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14"
+    },
+    {
+      "name": "humaneval",
+      "project_url": "https://github.com/openai/human-eval",
+      "download_url": "https://raw.githubusercontent.com/openai/human-eval/6d43fb980f9fee3c892a914eda09951f772ad10d/data/HumanEval.jsonl.gz",
+      "revision": "6d43fb980f9fee3c892a914eda09951f772ad10d",
+      "cache_file": "HumanEval.jsonl.gz",
+      "bytes": 44877,
+      "sha256": "b796127e635a67f93fb35c04f4cb03cf06f38c8072ee7cee8833d7bee06979ef"
+    },
+    {
+      "name": "truthfulqa",
+      "project_url": "https://github.com/sylinrl/TruthfulQA",
+      "download_url": "https://raw.githubusercontent.com/sylinrl/TruthfulQA/d71c110897f5d31c5d7f309e7bc316c152f6f031/TruthfulQA.csv",
+      "revision": "d71c110897f5d31c5d7f309e7bc316c152f6f031",
+      "cache_file": "TruthfulQA.csv",
+      "bytes": 503550,
+      "sha256": "b8d8ef1e12f98b4f2a9f47abc9765da0640b182b6c5d9b92f0c1a1f2f1e02e5c"
+    },
+    {
+      "name": "longbench_qasper",
+      "project_url": "https://github.com/THUDM/LongBench",
+      "download_url": "https://huggingface.co/datasets/zai-org/LongBench/resolve/5e628be450b7e67fb7ae6e201bd6d8f7056f7672/data.zip",
+      "revision": "5e628be450b7e67fb7ae6e201bd6d8f7056f7672",
+      "cache_file": "LongBench-data.zip",
+      "bytes": 113932529,
+      "sha256": "cb45b11a4133c6bc1d6a44b0f8e701335ff1e543195db1103472e575857f7f64"
+    }
+  ]
+}

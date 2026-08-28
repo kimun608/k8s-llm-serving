@@ -3,20 +3,20 @@
     "http_status": 200
   },
   "model": {
-    "id": "qwen2.5-0.5b-instruct",
+    "id": "qwen3.5-0.8b",
     "owned_by": "vllm",
-    "root": "/models/qwen2.5-0.5b-instruct",
+    "root": "/models/qwen3.5-0.8b",
     "max_model_len": 2048
   },
   "chat_completion": {
-    "id": "chatcmpl-b5950dd65d2852df",
-    "model": "qwen2.5-0.5b-instruct",
-    "content": "The \"CPU serving is ready\" message indicates that the system has detected that the",
-    "finish_reason": "length",
+    "id": "chatcmpl-9bcb3995931db875",
+    "model": "qwen3.5-0.8b",
+    "content": "CPU serving is ready",
+    "finish_reason": "stop",
     "usage": {
-      "prompt_tokens": 37,
-      "completion_tokens": 16,
-      "total_tokens": 53
+      "prompt_tokens": 20,
+      "completion_tokens": 5,
+      "total_tokens": 25
     }
   }
 }

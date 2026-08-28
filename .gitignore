@@ -1,4 +1,7 @@
 bin/
 results/raw/
+benchmark/data/cache/
+__pycache__/
+*.py[cod]
 *.log
 .DS_Store

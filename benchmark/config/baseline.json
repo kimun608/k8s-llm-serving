@@ -1,0 +1,19 @@
+{
+  "experiment": "baseline",
+  "namespace": "llm-serving",
+  "service": "vllm-cpu",
+  "model": "qwen3.5-0.8b",
+  "local_port": 18000,
+  "request_count": 100,
+  "concurrencies": [1, 2, 5, 10, 20, 50, 100],
+  "max_tokens": 64,
+  "temperature": 0.0,
+  "seed": 20260828,
+  "ignore_eos": true,
+  "warmup_requests": 3,
+  "warmup_max_tokens": 8,
+  "cooldown_seconds": 3,
+  "metrics_interval_seconds": 1.0,
+  "request_timeout_seconds": 1200,
+  "system_prompt": "You are serving a deterministic performance benchmark. Follow the user request accurately and answer concisely. Do not add greetings, disclaimers, or unrelated explanation. The response content is not quality-scored in this experiment; consistent inference work and reproducible token timing are the objective."
+}

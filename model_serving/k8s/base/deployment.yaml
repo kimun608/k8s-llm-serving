@@ -29,29 +29,30 @@ spec:
         node-role.kubernetes.io/worker: ""
       containers:
         - name: vllm
-          image: local/vllm-cpu:qwen2.5-0.5b-vllm0.26.0
+          image: local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0
           imagePullPolicy: Never
           command: ["vllm", "serve"]
           args:
-            - /models/qwen2.5-0.5b-instruct
+            - /models/qwen3.5-0.8b
             - --host
             - 0.0.0.0
             - --port
             - "8000"
             - --served-model-name
-            - qwen2.5-0.5b-instruct
+            - qwen3.5-0.8b
             - --dtype
-            - float16
+            - bfloat16
+            - --language-model-only
             - --max-model-len
             - "2048"
             - --max-num-seqs
             - "20"
             - --max-num-batched-tokens
             - "2048"
+            - --kv-cache-memory-bytes
+            - "536870912"
             - --no-enable-prefix-caching
           env:
-            - name: VLLM_CPU_KVCACHE_SPACE
-              value: "1"
             - name: HF_HUB_OFFLINE
               value: "1"
             - name: TRANSFORMERS_OFFLINE
@@ -67,10 +68,10 @@ spec:
           resources:
             requests:
               cpu: "4"
-              memory: 3Gi
+              memory: 4Gi
             limits:
               cpu: "6"
-              memory: 5Gi
+              memory: 6656Mi
           startupProbe:
             httpGet:
               path: /health

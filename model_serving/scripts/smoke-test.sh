@@ -33,4 +33,4 @@ curl -fsS "http://127.0.0.1:${local_port}/v1/models" | jq .
 echo "CHAT COMPLETION"
 curl -fsS "http://127.0.0.1:${local_port}/v1/chat/completions" \
   -H 'Content-Type: application/json' \
-  -d '{"model":"qwen2.5-0.5b-instruct","messages":[{"role":"user","content":"Reply with exactly: CPU serving is ready"}],"temperature":0,"max_tokens":16}' | jq .
+  -d '{"model":"qwen3.5-0.8b","messages":[{"role":"user","content":"Reply with exactly: CPU serving is ready"}],"temperature":0,"max_tokens":16}' | jq .

@@ -5,4 +5,4 @@ resources:
 images:
   - name: local/vllm-cpu
     newName: local/vllm-cpu
-    newTag: qwen2.5-0.5b-vllm0.26.0
+    newTag: qwen3.5-0.8b-vllm0.26.0
