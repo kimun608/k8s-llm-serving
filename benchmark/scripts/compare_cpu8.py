@@ -230,7 +230,7 @@ def main() -> None:
 - 유일한 serving 변경은 container CPU limit `6 → 8`
 - client/server prompt와 generation token counter가 모든 단계에서 일치함
 - 정식 phase의 UTC wall clock과 monotonic timer 오차가 1%/5초 이내이며 metric scrape error가 없음
-- host 중단 표본은 원본 보존 후 제외·재측정함: `{excluded_text}`
+- 교체 전 표본과 사유는 원본 보존함: `{excluded_text}`
 - 전체 OOM kill 증가량: `{total_oom:.0f}`
 
 ## 결과

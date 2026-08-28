@@ -41,10 +41,10 @@
 <circle cx="885.00" cy="237.10" r="4" fill="#2563eb"/>
 <line x1="102" y1="52" x2="126" y2="52" stroke="#2563eb" stroke-width="3"/>
 <text x="132" y="56" font-size="13" font-family="sans-serif">CPU limit 6</text>
-<polyline points="90.00,153.29 98.03,153.38 122.12,195.33 162.27,186.77 242.58,191.37 483.48,186.61 885.00,189.74" fill="none" stroke="#dc2626" stroke-width="3"/>
+<polyline points="90.00,153.29 98.03,153.38 122.12,186.42 162.27,186.77 242.58,191.37 483.48,186.61 885.00,189.74" fill="none" stroke="#dc2626" stroke-width="3"/>
 <circle cx="90.00" cy="153.29" r="4" fill="#dc2626"/>
 <circle cx="98.03" cy="153.38" r="4" fill="#dc2626"/>
-<circle cx="122.12" cy="195.33" r="4" fill="#dc2626"/>
+<circle cx="122.12" cy="186.42" r="4" fill="#dc2626"/>
 <circle cx="162.27" cy="186.77" r="4" fill="#dc2626"/>
 <circle cx="242.58" cy="191.37" r="4" fill="#dc2626"/>
 <circle cx="483.48" cy="186.61" r="4" fill="#dc2626"/>
