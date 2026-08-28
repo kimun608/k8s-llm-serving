@@ -105,6 +105,8 @@ C=10에서 평균 CPU는 `5.52 → 6.89`, output throughput은 23.9% 증가했�
 
 CPU 8은 “가능한 유일한 최적화”가 아니다. 이번에 실제 검증한 한 필드 변경 중 가장 직접적인 개선이다. weight quantization, OpenMP thread/affinity, scheduler/KV 조합은 별도 변수를 바꾸므로 독립 A/B로 검증해야 한다. FP8 KV cache는 Apple M4/ARM64의 vLLM CPU backend가 요구 kernel을 지원하지 않아 적용 실패했으며, 상세 이력은 [FP8 KV 실패 리포트](03_FAILED_OPTIMIZATION_FP8_KV.md)에 보존돼 있다. MTP와 KV tuning의 효과·역효과는 [기존 최적화 리포트](04_OPTIMIZATION_FINAL_ANALYSIS.md)에서 비교한다.
 
+후속으로 CPU limit 8을 고정한 채 MTP와 KV tuning을 다시 2,100건 비교했다. 저동시성에서는 MTP가 유리했지만 지속적인 C≥10의 범용 기본값은 여전히 baseline-cpu8이었으며, 상세 결과는 [CPU8 MTP·KV 분석 리포트](06_CPU8_MTP_KV_ANALYSIS.md)에 있다.
+
 ## 시간이 더 있다면
 
 1. CPU 6과 8을 `6→8→6→8` 교차 순서로 각 3회 이상 실행하고 phase별 중앙값, IQR 또는 bootstrap 신뢰구간을 제시한다.

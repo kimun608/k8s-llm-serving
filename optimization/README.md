@@ -193,3 +193,5 @@ MTP2의 약 75~77% acceptance는 낮은 동시성의 decode를 크게 개선했�
 자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 상세 원인·실패 후보·GPU production 전환 분석은 [`reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 있다.
 
 이후 baseline에서 CPU limit만 `6 → 8`로 바꾼 독립 실험은 [`optimization/cpu8/README.md`](cpu8/README.md)와 [`reports/05_BASELINE_CPU8_ANALYSIS.md`](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 분리했다.
+
+CPU limit 8을 고정한 후속 baseline/MTP/MTP+KV 비교는 [`optimization/cpu8-mtp-kv/README.md`](cpu8-mtp-kv/README.md)와 [`reports/06_CPU8_MTP_KV_ANALYSIS.md`](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 분리했다.

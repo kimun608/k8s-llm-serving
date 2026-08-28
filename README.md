@@ -32,6 +32,7 @@ project_process/
 6. [실패 기록: Apple M4에서 FP8 KV cache](reports/03_FAILED_OPTIMIZATION_FP8_KV.md)
 7. [최적화 before/after 최종 분석](reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)
 8. [단일 변경 검증: CPU limit 6 → 8](reports/05_BASELINE_CPU8_ANALYSIS.md)
+9. [CPU 8 고정: Baseline vs MTP vs MTP+KV 분석](reports/06_CPU8_MTP_KV_ANALYSIS.md)
 
 ## master와 worker의 관계
 
@@ -71,4 +72,4 @@ make smoke
 
 새 환경에서는 `make all`로 smoke test 직전까지 한 번에 실행할 수 있습니다. 현재 클러스터를 제거하려면 `make clean-cluster`를 사용합니다. 이 명령은 로컬 모델 이미지는 제거하지 않습니다.
 
-컨테이너·클러스터·배포 결과는 [1단계 리포트](reports/01_CONTAINER_CLUSTER_DEPLOYMENT.md), 700건 부하 측정 결과는 [베이스라인 리포트](reports/02_BASELINE_BENCHMARK.md)에 기록돼 있습니다. MTP·KV 최적화까지 포함한 총 2,100건 비교와 실패 분석은 [최종 분석 리포트](reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에서 확인할 수 있습니다. baseline에서 CPU limit만 `6 → 8`로 바꾼 추가 700건 A/B는 [CPU 8 분석 리포트](reports/05_BASELINE_CPU8_ANALYSIS.md)에 정리했습니다. 재분석 가능한 원시는 [benchmark/results](benchmark/results/)에 함께 보관합니다.
+컨테이너·클러스터·배포 결과는 [1단계 리포트](reports/01_CONTAINER_CLUSTER_DEPLOYMENT.md), 700건 부하 측정 결과는 [베이스라인 리포트](reports/02_BASELINE_BENCHMARK.md)에 기록돼 있습니다. CPU6의 MTP·KV 총 2,100건 비교는 [최종 분석 리포트](reports/04_OPTIMIZATION_FINAL_ANALYSIS.md), CPU limit만 `6 → 8`로 바꾼 700건 A/B는 [CPU 8 분석 리포트](reports/05_BASELINE_CPU8_ANALYSIS.md), CPU8에서 baseline·MTP·MTP+KV를 다시 비교한 2,100건은 [CPU8 최적화 분석](reports/06_CPU8_MTP_KV_ANALYSIS.md)에 정리했습니다. 재분석 가능한 원시는 [benchmark/results](benchmark/results/)에 함께 보관합니다.

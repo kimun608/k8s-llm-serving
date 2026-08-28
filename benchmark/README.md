@@ -221,6 +221,24 @@ python3 benchmark/scripts/run_benchmark.py \
 
 교체 전 request JSONL, metric CSV, phase JSON과 제외 사유는 결과 폴더의 `excluded/` 아래에 자동 보존됩니다.
 
+### CPU limit 8 고정 MTP·KV 비교
+
+완료된 `baseline-cpu8`을 기준으로 CPU와 memory를 고정하고 MTP, 이어서 BF16 KV capacity/scheduler 변경을 적용합니다.
+
+```bash
+make deploy-mtp-cpu8
+make smoke
+make benchmark-mtp-cpu8
+
+make deploy-mtp-kv-tuned-cpu8
+make smoke
+make benchmark-mtp-kv-tuned-cpu8
+
+make benchmark-compare-cpu8-optimizations
+```
+
+`benchmark-compare-cpu8-optimizations`는 세 설정의 총 2,100건, workload/token counter/timer/metric scrape와 rendered container 명세를 검증합니다. 실측 표와 그래프는 [results/comparison-cpu8-optimizations/REPORT.md](results/comparison-cpu8-optimizations/REPORT.md), 원인과 권고는 [CPU8 MTP·KV 분석 리포트](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
+
 ## 해석 원칙
 
 - throughput 증가가 멈추고 p95/p99 TTFT와 waiting이 동시에 증가하면 CPU 처리 용량의 포화로 판단합니다.

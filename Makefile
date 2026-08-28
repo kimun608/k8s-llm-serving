@@ -15,7 +15,7 @@ IMAGE_REPOSITORY := local/vllm-cpu
 IMAGE_TAG := qwen3.5-0.8b-vllm0.26.0
 IMAGE := $(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
-.PHONY: help preflight install-kind image cluster load verify-cluster deploy deploy-baseline-cpu8 deploy-mtp deploy-mtp-kv-tuned wait status smoke benchmark-data benchmark-check benchmark-baseline benchmark-baseline-cpu8 benchmark-mtp benchmark-mtp-kv-tuned benchmark-analyze benchmark-compare benchmark-compare-cpu8 all clean-cluster
+.PHONY: help preflight install-kind image cluster load verify-cluster deploy deploy-baseline-cpu8 deploy-mtp deploy-mtp-cpu8 deploy-mtp-kv-tuned deploy-mtp-kv-tuned-cpu8 wait status smoke benchmark-data benchmark-check benchmark-baseline benchmark-baseline-cpu8 benchmark-mtp benchmark-mtp-cpu8 benchmark-mtp-kv-tuned benchmark-mtp-kv-tuned-cpu8 benchmark-analyze benchmark-compare benchmark-compare-cpu8 benchmark-compare-cpu8-optimizations all clean-cluster
 
 help:
 	@echo "make preflight       Check the local environment"
@@ -27,7 +27,9 @@ help:
 	@echo "make deploy          Apply the baseline Kubernetes resources"
 	@echo "make deploy-baseline-cpu8  Apply baseline with only CPU limit 8"
 	@echo "make deploy-mtp      Apply native MTP optimization and wait"
+	@echo "make deploy-mtp-cpu8 Apply native MTP with CPU limit 8 and wait"
 	@echo "make deploy-mtp-kv-tuned  Apply MTP + 768MiB KV/24-seq optimization and wait"
+	@echo "make deploy-mtp-kv-tuned-cpu8  Apply MTP + KV tuned with CPU limit 8"
 	@echo "make wait            Wait until the vLLM Deployment is available"
 	@echo "make status          Show nodes, Pods, Service, and recent events"
 	@echo "make smoke           Test /health, /v1/models, and one completion"
@@ -36,10 +38,13 @@ help:
 	@echo "make benchmark-baseline  Run 100 requests at C=1,2,5,10,20,50,100 and analyze"
 	@echo "make benchmark-baseline-cpu8  Run the same matrix with only CPU limit 8"
 	@echo "make benchmark-mtp       Run the same 700-request matrix against MTP"
+	@echo "make benchmark-mtp-cpu8  Run the same matrix against MTP with CPU limit 8"
 	@echo "make benchmark-mtp-kv-tuned  Run the same matrix against both optimizations"
+	@echo "make benchmark-mtp-kv-tuned-cpu8  Run both optimizations with CPU limit 8"
 	@echo "make benchmark-analyze   Rebuild tables, SVG charts, and the report"
 	@echo "make benchmark-compare   Validate and compare baseline, MTP, and final results"
 	@echo "make benchmark-compare-cpu8  Validate the one-field CPU 6 vs 8 comparison"
+	@echo "make benchmark-compare-cpu8-optimizations  Compare CPU 8 baseline/MTP/MTP+KV"
 	@echo "make all             Run install-kind, image, cluster, load, deploy, wait"
 	@echo "make clean-cluster   Delete only the project-process Kind cluster"
 
@@ -73,8 +78,16 @@ deploy-mtp:
 	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/mtp"
 	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=300s
 
+deploy-mtp-cpu8:
+	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/mtp-cpu8"
+	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=300s
+
 deploy-mtp-kv-tuned:
 	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/mtp-kv-tuned"
+	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=300s
+
+deploy-mtp-kv-tuned-cpu8:
+	kubectl apply -k "$(MODEL_SERVING_DIR)/k8s/overlays/mtp-kv-tuned-cpu8"
 	kubectl -n llm-serving rollout status deployment/vllm-cpu --timeout=300s
 
 wait:
@@ -131,6 +144,17 @@ benchmark-mtp: benchmark-data
 		--output "$(RESULTS_ROOT)/mtp" --resume
 	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/mtp"
 
+benchmark-mtp-cpu8: benchmark-data
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp-cpu8.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp-cpu8" --max-new-phases 4
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp-cpu8.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp-cpu8" --resume
+	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/mtp-cpu8"
+
 benchmark-mtp-kv-tuned: benchmark-data
 	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
 		--config "$(BENCHMARK_DIR)/config/mtp-kv-tuned.json" \
@@ -141,6 +165,17 @@ benchmark-mtp-kv-tuned: benchmark-data
 		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
 		--output "$(RESULTS_ROOT)/mtp-kv-tuned" --resume
 	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/mtp-kv-tuned"
+
+benchmark-mtp-kv-tuned-cpu8: benchmark-data
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp-kv-tuned-cpu8.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp-kv-tuned-cpu8" --max-new-phases 4
+	$(KEEP_AWAKE) python3 "$(BENCHMARK_DIR)/scripts/run_benchmark.py" \
+		--config "$(BENCHMARK_DIR)/config/mtp-kv-tuned-cpu8.json" \
+		--prompts "$(BENCHMARK_DIR)/data/prompts.jsonl" \
+		--output "$(RESULTS_ROOT)/mtp-kv-tuned-cpu8" --resume
+	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/mtp-kv-tuned-cpu8"
 
 benchmark-analyze:
 	python3 "$(BENCHMARK_DIR)/scripts/analyze.py" --input "$(RESULTS_ROOT)/baseline"
@@ -154,6 +189,11 @@ benchmark-compare-cpu8:
 	python3 "$(BENCHMARK_DIR)/scripts/compare_cpu8.py" \
 		--results-root "$(RESULTS_ROOT)" \
 		--output "$(RESULTS_ROOT)/comparison-cpu8"
+
+benchmark-compare-cpu8-optimizations:
+	python3 "$(BENCHMARK_DIR)/scripts/compare_cpu8_optimizations.py" \
+		--results-root "$(RESULTS_ROOT)" \
+		--output "$(RESULTS_ROOT)/comparison-cpu8-optimizations"
 
 all: install-kind image cluster load verify-cluster deploy wait status
 
