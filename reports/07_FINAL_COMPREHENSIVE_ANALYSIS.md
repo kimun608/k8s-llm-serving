@@ -60,6 +60,10 @@ Peak running과 peak waiting은 서로 다른 시점의 독립 최댓값이다. 
 | C=20 | **16.22** | 16 / 9 | 100% | 109.94s |
 | C=100 | 15.15 | 16 / 91 | 100% | 415.57s |
 
+![동시성 증가에 따른 peak KV cache 점유](../benchmark/results/comparison-all/charts/kv-cache-growth-by-concurrency.svg)
+
+위 그래프는 CPU8·MTP2·`max-num-seqs=20`을 고정하고 KV budget만 `512/768MiB`로 바꾼 직접 비교다. 위 패널의 MiB-equivalent는 `configured KV budget ×` [vLLM used-block fraction](https://docs.vllm.ai/en/stable/design/metrics/)으로 환산한 block-capacity 추정치이며 실제 Pod RSS가 아니다. C=1/2/5에서는 두 설정이 약 `98/188/465MiB`로 비슷했지만, KV512는 C=5부터 약 `467MiB`에서 plateau했고 KV768은 C=10에서 약 `741MiB`까지 추가 공간을 사용한 뒤 plateau했다. 아래 패널의 `%`는 설정별 분모가 다르며, 값은 1초 sampled peak다. 선은 측정한 C만 연결하며 미측정 구간을 증명하지 않는다.
+
 ```mermaid
 flowchart LR
     A["요청 동시성 증가"] --> B["continuous batch 증가"]
@@ -87,17 +91,13 @@ flowchart LR
 | KV byte budget을 늘리면 모두 빨라진다 | KV가 binding이고, 늘어난 active batch를 처리할 execution headroom이 있어야 함 | MTP C20 run/wait `5/15→8/12`로 capacity는 개선됐지만 TPOT `+93.1%`, E2E `+22.0%`, throughput `-10.4%` |
 | max-seqs를 높이면 동시 처리가 늘어난다 | 실제 running이 기존 상한에 도달해야 함 | 1초 sampled peak가 기준과 같아 상한 20이 binding됐다는 증거가 없음 |
 
-![KV cache 증량의 capacity-performance trade-off](../benchmark/results/comparison-all/charts/kv-cache-tradeoff-c20.svg)
-
-이 그림은 CPU8·MTP2·`max-num-seqs=20`을 고정한 C=20 직접 비교를 시각화한다. **KV 증량은 active-context 수용량 조정이지 per-token CPU 연산 가속과 동의어가 아니며**, 정확한 CPU-side 악화 원인은 profiler 없이 더 세분하지 않는다.
-
 MTP의 TPOT와 active-batch 조건이 함께 달라졌으므로 intrinsic MTP 효과를 분리할 수 없다. KV 증량 뒤의 정확한 CPU-side 제약도 compute/cache/memory/threading으로 분해하지 못했다. 일반 비용 구조는 [Speculative Decoding 원 논문](https://proceedings.mlr.press/v202/leviathan23a.html), KV capacity와 preemption 관계는 [vLLM 최적화 문서](https://docs.vllm.ai/en/v0.26.0/configuration/optimization/)와 [PagedAttention 논문](https://arxiv.org/abs/2309.06180)에 근거한다. 상세 수치와 한계는 9~12절에 보존했다.
 
 `max-num-seqs=50`은 KV를 늘리고 실제 running이 20에 도달하는 조건을 만든 뒤 `8/12/16/20/24/50`으로 sweep한다.
 
 ### 1.6 GPU를 사용해도 같은가
 
-**원리는 같지만 결과 숫자와 최적점은 같지 않다.** GPU도 지속 가능한 service rate, KV capacity 또는 scheduler budget을 넘으면 running은 포화되고 초과 요청은 waiting에 쌓여 TTFT/E2E가 급증한다. GPU라고 queueing이 사라지거나 MTP·KV 증량이 전 구간 개선을 보장하지 않는다.
+**KV 점유가 active token·request 증가에 따라 커지고, capacity에 도달하면 plateau·queue 또는 preemption으로 전환되는 원리는 GPU도 같다. 그러나 KV budget 증량 뒤의 처리량·지연 변화 방향까지 CPU와 같다고 볼 수는 없다.** GPU도 지속 가능한 service rate, KV capacity 또는 scheduler budget을 넘으면 running은 포화되고 초과 요청은 waiting에 쌓인다. 다만 GPU는 병목이 compute·HBM bandwidth·kernel/batch shape로 달라 더 큰 KV가 preemption을 줄이고 GPU batching을 활용해 throughput을 높일 수도 있고, 다른 자원이 이미 포화됐다면 효과가 없거나 latency가 악화될 수도 있다. vLLM도 작은 KV allocation은 batch concurrency를 제한하고, KV 부족 시 preemption·recompute가 E2E latency를 악화시킬 수 있다고 설명한다([optimization guide](https://docs.vllm.ai/en/stable/configuration/optimization/), [engine arguments](https://docs.vllm.ai/en/stable/configuration/engine_args/)).
 
 | 관점 | 이번 Apple M4 CPU | GPU production |
 |---|---|---|

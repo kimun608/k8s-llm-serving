@@ -922,6 +922,312 @@ def kv_cache_tradeoff_chart(
     path.write_text("\n".join(parts) + "\n", encoding="utf-8")
 
 
+def kv_cache_growth_chart(
+    path: Path,
+    by_variant: dict[str, dict[int, dict[str, Any]]],
+    concurrencies: list[int],
+) -> None:
+    """Plot concurrency-driven KV block occupancy in percent and MiB-equivalent."""
+    if tuple(concurrencies) != CONCURRENCIES:
+        raise ComparisonError(
+            "KV growth chart requires the canonical measured concurrency matrix"
+        )
+
+    reference_spec = SPEC_BY_NAME["mtp-cpu8"]
+    increased_spec = SPEC_BY_NAME["mtp-kv768-cpu8"]
+    fixed_reference = (
+        reference_spec.cpu_limit,
+        reference_spec.mtp_enabled,
+        reference_spec.max_num_seqs,
+    )
+    fixed_increased = (
+        increased_spec.cpu_limit,
+        increased_spec.mtp_enabled,
+        increased_spec.max_num_seqs,
+    )
+    if fixed_reference != fixed_increased or fixed_reference != (8, True, 20):
+        raise ComparisonError(
+            "KV growth chart variants must hold CPU8, MTP2 and max-num-seqs=20 fixed"
+        )
+    if (reference_spec.kv_mib, increased_spec.kv_mib) != (512, 768):
+        raise ComparisonError(
+            "KV growth chart requires the controlled 512MiB and 768MiB budgets"
+        )
+
+    colors = ("#2563eb", "#7c3aed")
+    series: list[dict[str, Any]] = []
+    for spec, color, marker in (
+        (reference_spec, colors[0], "circle"),
+        (increased_spec, colors[1], "square"),
+    ):
+        percentages: list[float] = []
+        used_mib: list[float] = []
+        for concurrency in concurrencies:
+            try:
+                row = by_variant[spec.name][concurrency]
+            except KeyError as exc:
+                raise ComparisonError(
+                    f"{spec.name}: missing C={concurrency} for KV growth chart"
+                ) from exc
+            percentage = finite(row["peak_kv_cache_percent"])
+            if (
+                not math.isfinite(percentage)
+                or percentage < 0
+                or percentage > 100 + 1e-6
+            ):
+                raise ComparisonError(
+                    f"{spec.name} C={concurrency}: peak KV percent must be in [0, 100]"
+                )
+            percentage = min(percentage, 100.0)
+            estimated_mib = spec.kv_mib * percentage / 100
+            if estimated_mib < 0 or estimated_mib > spec.kv_mib + 1e-6:
+                raise ComparisonError(
+                    f"{spec.name} C={concurrency}: invalid estimated occupied KV MiB"
+                )
+            percentages.append(percentage)
+            used_mib.append(estimated_mib)
+        series.append(
+            {
+                "label": f"KV budget {spec.kv_mib}MiB",
+                "spec": spec,
+                "color": color,
+                "marker": marker,
+                "dash": "" if spec is reference_spec else "5 4",
+                "percentages": percentages,
+                "used_mib": used_mib,
+            }
+        )
+
+    def plateau_start(values: list[float]) -> int | None:
+        tolerance = max(1e-6, max(abs(value) for value in values) * 1e-6)
+        for index in range(len(values) - 1):
+            suffix = values[index:]
+            if max(suffix) - min(suffix) <= tolerance:
+                return concurrencies[index]
+        return None
+
+    def plateau_label(value: int | None) -> str:
+        return f"C={value}" if value is not None else "not observed"
+
+    def plateau_korean(label: str, value: int | None) -> str:
+        return (
+            f"{label} C={value}부터"
+            if value is not None
+            else f"{label} plateau 미관찰"
+        )
+
+    plateau_512 = plateau_start(series[0]["used_mib"])
+    plateau_768 = plateau_start(series[1]["used_mib"])
+    plateau_count = sum(value is not None for value in (plateau_512, plateau_768))
+    if plateau_count == 2:
+        plateau_note = (
+            "plateau로 판정된 구간에서는 concurrency가 증가해도 sampled peak "
+            "KV occupancy가 더 증가하지 않았다."
+        )
+    elif plateau_count == 1:
+        plateau_note = (
+            "plateau로 판정된 series만 이후 sampled peak KV occupancy가 "
+            "평탄했으며, 다른 series는 plateau가 관찰되지 않았다."
+        )
+    else:
+        plateau_note = (
+            "마지막 두 측정점까지 평탄한 suffix가 없어 plateau로 판정하지 않았다."
+        )
+    series_descriptions = []
+    for item in series:
+        observations = ", ".join(
+            f"C{concurrency} {used:.1f} MiB ({percentage:.1f} percent)"
+            for concurrency, used, percentage in zip(
+                concurrencies,
+                item["used_mib"],
+                item["percentages"],
+            )
+        )
+        series_descriptions.append(f"{item['label']}: {observations}")
+    description = (
+        "CPU8 MTP2 max-num-seqs 20. "
+        + "; ".join(series_descriptions)
+        + ". Observed plateau starts: KV budget 512MiB "
+        + plateau_label(plateau_512)
+        + ", KV budget 768MiB "
+        + plateau_label(plateau_768)
+        + ". "
+        "MiB values are configured budget multiplied by the one-second sampled "
+        "used-block fraction, not RSS."
+    )
+
+    width, height = 1280, 890
+    left, right = 120, 70
+    plot_width = width - left - right
+    top_plot_top, top_plot_bottom = 135, 430
+    lower_plot_top, lower_plot_bottom = 550, 760
+    neutral, grid, border = "#4b5563", "#e5e7eb", "#9ca3af"
+
+    def x_position(index: int) -> float:
+        return left + index / (len(concurrencies) - 1) * plot_width
+
+    def y_top(value: float) -> float:
+        return top_plot_bottom - value / 800 * (top_plot_bottom - top_plot_top)
+
+    def y_lower(value: float) -> float:
+        return lower_plot_bottom - value / 100 * (
+            lower_plot_bottom - lower_plot_top
+        )
+
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="kv-growth-title kv-growth-desc">',
+        '<title id="kv-growth-title">Concurrency versus peak KV cache occupancy</title>',
+        f'<desc id="kv-growth-desc">{html.escape(description)}</desc>',
+        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff"/>',
+        '<text x="640" y="38" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="600">동시성 증가에 따른 peak KV cache 점유</text>',
+        '<text x="640" y="66" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#4b5563">Controlled A/B: CPU 8 · MTP2 · max-num-seqs 20 · 동일 100 prompts</text>',
+    ]
+
+    for index, item in enumerate(series):
+        legend_x = 375 + index * 290
+        color = item["color"]
+        dash = (
+            f' stroke-dasharray="{item["dash"]}"'
+            if item["dash"]
+            else ""
+        )
+        parts.append(
+            f'<line x1="{legend_x}" y1="98" x2="{legend_x + 34}" y2="98" stroke="{color}" stroke-width="3"{dash}/>'
+        )
+        if item["marker"] == "circle":
+            parts.append(
+                f'<circle cx="{legend_x + 17}" cy="98" r="5" fill="{color}"/>'
+            )
+        else:
+            parts.append(
+                f'<rect x="{legend_x + 12}" y="93" width="10" height="10" fill="{color}"/>'
+            )
+        parts.append(
+            f'<text x="{legend_x + 44}" y="103" font-size="15" font-family="sans-serif">{html.escape(item["label"])}</text>'
+        )
+
+    # Top panel: configured-budget-equivalent occupied capacity.
+    parts.extend(
+        (
+            '<text x="120" y="125" font-size="17" font-family="sans-serif" font-weight="600">A. Peak occupied KV block capacity (MiB-equivalent)</text>',
+            f'<rect x="{left}" y="{top_plot_top}" width="{plot_width}" height="{top_plot_bottom - top_plot_top}" fill="none" stroke="{border}"/>',
+        )
+    )
+    for tick in (0, 200, 400, 600, 800):
+        y = y_top(tick)
+        parts.extend(
+            (
+                f'<line x1="{left}" y1="{y:.1f}" x2="{left + plot_width}" y2="{y:.1f}" stroke="{grid}"/>',
+                f'<text x="{left - 14}" y="{y + 5:.1f}" text-anchor="end" font-size="14" font-family="sans-serif" fill="{neutral}">{tick}</text>',
+            )
+        )
+    parts.append(
+        f'<text transform="translate(28 {(top_plot_top + top_plot_bottom) / 2}) rotate(-90)" text-anchor="middle" font-size="15" font-family="sans-serif">Estimated occupied budget (MiB)</text>'
+    )
+    for item in series:
+        budget = item["spec"].kv_mib
+        y = y_top(budget)
+        color = item["color"]
+        parts.extend(
+            (
+                f'<line x1="{left}" y1="{y:.1f}" x2="{left + plot_width}" y2="{y:.1f}" stroke="{color}" stroke-width="1.5" stroke-dasharray="7 5" opacity="0.65"/>',
+                f'<text x="{left + plot_width - 8}" y="{y - 7:.1f}" text-anchor="end" font-size="13" font-family="sans-serif" fill="{color}">{budget}MiB configured ceiling</text>',
+            )
+        )
+    for item in series:
+        color = item["color"]
+        values = item["used_mib"]
+        dash = (
+            f' stroke-dasharray="{item["dash"]}"'
+            if item["dash"]
+            else ""
+        )
+        coordinates = " ".join(
+            f"{x_position(index):.1f},{y_top(value):.1f}"
+            for index, value in enumerate(values)
+        )
+        parts.append(
+            f'<polyline points="{coordinates}" fill="none" stroke="{color}" stroke-width="3"{dash}/>'
+        )
+        for index, value in enumerate(values):
+            x, y = x_position(index), y_top(value)
+            if item["marker"] == "circle":
+                parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" fill="{color}"/>')
+            else:
+                parts.append(
+                    f'<rect x="{x - 5:.1f}" y="{y - 5:.1f}" width="10" height="10" fill="{color}"/>'
+                )
+    c5_index = concurrencies.index(5)
+    c10_index = concurrencies.index(10)
+    parts.extend(
+        (
+            f'<text x="{x_position(c5_index) - 12:.1f}" y="{y_top(series[0]["used_mib"][c5_index]) - 20:.1f}" text-anchor="end" font-size="14" font-family="sans-serif" fill="{series[0]["color"]}">{series[0]["used_mib"][c5_index]:.1f}MiB · {series[0]["percentages"][c5_index]:.1f}%</text>',
+            f'<text x="{x_position(c5_index) + 12:.1f}" y="{y_top(series[1]["used_mib"][c5_index]) + 28:.1f}" text-anchor="start" font-size="14" font-family="sans-serif" fill="{series[1]["color"]}">{series[1]["used_mib"][c5_index]:.1f}MiB · {series[1]["percentages"][c5_index]:.1f}%</text>',
+            f'<text x="{x_position(c10_index) + 12:.1f}" y="{y_top(series[1]["used_mib"][c10_index]) + 27:.1f}" text-anchor="start" font-size="14" font-family="sans-serif" fill="{series[1]["color"]}">{series[1]["used_mib"][c10_index]:.1f}MiB · {series[1]["percentages"][c10_index]:.1f}%</text>',
+            f'<text x="640" y="470" text-anchor="middle" font-size="16" font-family="sans-serif" font-weight="600">관찰된 plateau: {plateau_korean("KV512", plateau_512)} · {plateau_korean("KV768", plateau_768)}</text>',
+            f'<text x="640" y="497" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#4b5563">{html.escape(plateau_note)}</text>',
+        )
+    )
+
+    # Lower panel: the raw vLLM used-block fraction for each pool.
+    parts.extend(
+        (
+            '<text x="120" y="540" font-size="17" font-family="sans-serif" font-weight="600">B. Peak used-block ratio within each configured pool</text>',
+            f'<rect x="{left}" y="{lower_plot_top}" width="{plot_width}" height="{lower_plot_bottom - lower_plot_top}" fill="none" stroke="{border}"/>',
+        )
+    )
+    for tick in (0, 25, 50, 75, 100):
+        y = y_lower(tick)
+        parts.extend(
+            (
+                f'<line x1="{left}" y1="{y:.1f}" x2="{left + plot_width}" y2="{y:.1f}" stroke="{grid}"/>',
+                f'<text x="{left - 14}" y="{y + 5:.1f}" text-anchor="end" font-size="14" font-family="sans-serif" fill="{neutral}">{tick}%</text>',
+            )
+        )
+    parts.append(
+        f'<text transform="translate(28 {(lower_plot_top + lower_plot_bottom) / 2}) rotate(-90)" text-anchor="middle" font-size="15" font-family="sans-serif">Used KV blocks (%)</text>'
+    )
+    for item in series:
+        color = item["color"]
+        values = item["percentages"]
+        dash = (
+            f' stroke-dasharray="{item["dash"]}"'
+            if item["dash"]
+            else ""
+        )
+        coordinates = " ".join(
+            f"{x_position(index):.1f},{y_lower(value):.1f}"
+            for index, value in enumerate(values)
+        )
+        parts.append(
+            f'<polyline points="{coordinates}" fill="none" stroke="{color}" stroke-width="3"{dash}/>'
+        )
+        for index, value in enumerate(values):
+            x, y = x_position(index), y_lower(value)
+            if item["marker"] == "circle":
+                parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" fill="{color}"/>')
+            else:
+                parts.append(
+                    f'<rect x="{x - 5:.1f}" y="{y - 5:.1f}" width="10" height="10" fill="{color}"/>'
+                )
+    for index, concurrency in enumerate(concurrencies):
+        x = x_position(index)
+        parts.extend(
+            (
+                f'<line x1="{x:.1f}" y1="{lower_plot_bottom}" x2="{x:.1f}" y2="{lower_plot_bottom + 7}" stroke="#111827"/>',
+                f'<text x="{x:.1f}" y="{lower_plot_bottom + 29}" text-anchor="middle" font-size="14" font-family="sans-serif">{concurrency}</text>',
+            )
+        )
+    parts.extend(
+        (
+            f'<text x="{left + plot_width / 2}" y="{lower_plot_bottom + 58}" text-anchor="middle" font-size="15" font-family="sans-serif">Configured client concurrency (100 requests total)</text>',
+            '<text x="640" y="865" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#4b5563">MiB-equivalent = configured KV budget × vLLM used-block fraction; actual RSS가 아님 · 1초 sampled peak · 선은 측정점 연결</text>',
+        )
+    )
+    parts.append("</svg>")
+    path.write_text("\n".join(parts) + "\n", encoding="utf-8")
+
+
 def create_charts(
     charts_dir: Path,
     loaded: dict[str, tuple[list[dict], dict]],
@@ -1029,6 +1335,11 @@ def create_charts(
         charts_dir / "kv-cache-tradeoff-c20.svg",
         by_variant,
     )
+    kv_cache_growth_chart(
+        charts_dir / "kv-cache-growth-by-concurrency.svg",
+        by_variant,
+        concurrencies,
+    )
 
 
 def write_report(
@@ -1101,6 +1412,7 @@ def write_report(
 - [핵심 단일 변수 비교](charts/core-throughput.svg)
 - [CPU6 baseline 대비 변화율](charts/vs-cpu6-baseline.svg)
 - [같은 CPU의 직전 단독/증분 효과](charts/same-cpu-direct-effect.svg)
+- [동시성별 peak KV cache 점유](charts/kv-cache-growth-by-concurrency.svg)
 - [KV cache capacity–performance trade-off (C=20)](charts/kv-cache-tradeoff-c20.svg)
 
 원시 값과 전체 지표는 [comparison.csv](comparison.csv)에 저장한다. 단일 실행 간 host background load와 thermal 변동은 제거되지 않으므로 작은 차이는 반복 실험 없이 확정값으로 해석하지 않는다.
