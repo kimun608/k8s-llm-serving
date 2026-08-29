@@ -90,6 +90,7 @@
 ## 그래프
 
 - [전체 output throughput](charts/output-throughput.svg)
+- [핵심 단일 변수 비교](charts/core-throughput.svg)
 - [CPU6 baseline 대비 변화율](charts/vs-cpu6-baseline.svg)
 - [같은 CPU의 직전 단독/증분 효과](charts/same-cpu-direct-effect.svg)
 

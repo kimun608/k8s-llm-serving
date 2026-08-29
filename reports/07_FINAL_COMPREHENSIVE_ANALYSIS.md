@@ -1,28 +1,115 @@
 # 최종 종합 분석: 로컬 CPU vLLM 서빙과 최적화
 
-## 1. 결론
+## 1. 최종 결과 한눈에 보기
 
-Apple M4 노트북의 Docker Desktop 안에 CPU-only Kind 클러스터를 만들고, 오픈웨이트 `Qwen/Qwen3.5-0.8B`를 vLLM `0.26.0+cpu`로 서빙했다. 동일한 공개 벤치마크 기반 prompt 100건을 동시성 `1, 2, 5, 10, 20, 50, 100`에서 각각 실행해 설정당 700건을 측정했다. 정식 행렬 8개 설정, 총 `5,600/5,600`건이 성공했으며 client/server token counter가 일치하고 metric scrape error와 OOM kill은 0이었다. 각 run 시작 manifest와 최종 복구 상태에서 Pod restart 0을 확인했지만, 기존 runner는 phase 종료마다 restart를 재수집하지 않았다.
+이 절만 읽어도 **환경, 가설, 실험, 결과, 병목 원인과 최종 선택**을 파악할 수 있다. 2절 이후는 파라미터, 원시 결과, 한계와 재현 절차를 보존한 상세 근거다.
 
-현재 실측에서 7개 동시성 모두 개선 방향이 일관된 가장 명확한 단일 변경은 baseline의 container CPU limit만 `6→8`로 높인 것이다. Output throughput은 `11.7~24.8%` 증가했고, 동일한 44,800 output tokens를 처리한 phase 시간 합은 `4,598.07→3,840.71초`로 16.5% 줄었다. 다만 C=5의 두 CPU8 유효 표본은 throughput이 19.5% 달라 반복 안정성은 아직 입증되지 않았다.
+### 1.1 Executive snapshot
 
-CPU6→8은 런타임 알고리즘을 효율화한 것이 아니라 같은 Docker VM에서 Pod가 사용할 수 있는 CPU quota를 늘린 vertical scale-up이다. 과제의 before/after에는 가장 명확한 단일 변경으로 포함하되, MTP·KV·scheduler 최적화와 다른 축으로 분류한다.
+| 항목 | 핵심 내용 |
+|---|---|
+| 환경 | Apple M4 MacBook Air, Docker Linux/ARM64 `10 vCPU·7.65GiB`, GPU 없는 CPU-only Kind 클러스터 |
+| 모델·런타임 | 오픈웨이트 `Qwen/Qwen3.5-0.8B` BF16, vLLM `0.26.0+cpu` |
+| 부하 | 공개 데이터셋 4종 각 25건, 총 100 prompts를 동시성 `1, 2, 5, 10, 20, 50, 100`에서 동일하게 실행 |
+| 실험 규모 | 8개 설정 × 설정당 700건 = `5,600/5,600` 성공; client/server token counter 일치, scrape error·OOM kill 0 |
+| 가장 명확한 개선 | CPU limit `6→8`: 모든 동시성에서 output throughput `+11.7~24.8%` |
+| 최종 선택 | 지속적인 `C≥10`: `baseline-cpu8`; `C≤5` interactive 후보: `mtp-cpu8` |
+| 미채택 | KV 768MiB는 수용량만 증가, `max-num-seqs=24`는 binding 증거 없음, FP8 KV는 ARM kernel 미지원 |
 
-Native MTP2는 저동시성에 선택적으로 유리했다. CPU8에서 C=1·2·5 throughput은 baseline-cpu8보다 `27.8%`, `11.0%`, `9.3%` 높았지만 C=10·20에서는 `3.5%`, `9.9%` 낮았다. C=50은 baseline이 0.9% 높고 C=100은 사실상 동률이었다. 따라서 이번 실험에서 **지속적인 C≥10의 보수적 기본값**은 `baseline-cpu8`, C≤5 interactive 부하의 잠정 후보는 `mtp-cpu8`이다. 정의된 traffic mix가 없으므로 “혼합 부하 최적값”은 주장하지 않는다.
+> **한 문장 결론:** MTP 설정은 낮은 동시성에서 유리했고 C=20에서도 TPOT·E2E는 개선했지만, active capacity와 queue가 달라져 100건 전체 완료 시간과 aggregate throughput을 항상 개선하지는 못했다. KV byte budget 증량은 더 많은 요청을 running으로 옮겼지만 per-token 연산을 직접 가속하지는 않았다.
 
-기존 `mtp-kv-tuned*`는 이름과 달리 KV-only 실험이 아니다. KV byte budget `512→768MiB`와 `max-num-seqs` `20→24`를 함께 바꾼 legacy **capacity bundle**이다. 이를 바로잡기 위해 CPU8·MTP2를 고정하고 KV-only와 max-seqs-only를 각각 700건씩 추가해 2×2를 완성했다.
+### 1.2 무엇을 통제하고 비교했는가
 
-- KV-only는 peak running 최대값을 `5→8`, peak waiting 최대값을 3개 줄였지만 C=10·20 output throughput은 MTP2 기준보다 `10.2%`, `10.4%` 낮고 TPOT p95는 `78.6%`, `93.1%` 높았다. Queue capacity 증가는 관찰됐지만 같은 8-core의 더 큰 active batch에서 CPU/cache 경쟁이 커졌다는 해석과 일치하므로 속도 최적화로 채택하지 않는다.
-- `max-num-seqs 20→24` 단독은 peak running/waiting을 전혀 바꾸지 않았다. C=5·10·20·50·100 throughput 변화는 각각 `-0.6%`, `-0.4%`, `-1.5%`, `-2.9%`, `-5.4%`였다. 기존 상한 20에 도달하지 못했으므로 24는 비활성 설정이었고 개선으로 채택하지 않는다.
-- C=1·2처럼 두 capacity가 병목이 아닌 구간에서 새 설정 간 최대 16.8% 차이가 나타났다. 설정 효과라는 근거가 없으므로 host/JIT/thermal을 포함한 단일 실행 변동으로 보수적으로 분류한다.
+동시성 `C`는 100건을 C번 반복한다는 뜻이 아니다. 동일한 100건 중 **최대 C건을 동시에 in-flight**로 유지하고, 완료된 자리에 다음 요청을 넣는다. 따라서 설정당 실측 요청은 `100×7=700건`이다.
 
-따라서 질문한 `max-num-seqs` 변경이 기존 bundle 속도 차이를 만들었을 가능성을 설계상 배제할 수는 없었지만, 분리 실측에서는 scheduler 상태가 같아 직접 효과가 관찰되지 않았다. 기존 bundle의 저동시성 큰 양수나 고동시성 차이를 어느 한 변수에 귀속하지 않는다.
+| 검증 가설 | 직접 비교 | 고정한 변수 | 판정 질문 |
+|---|---|---|---|
+| CPU quota | CPU6 baseline → CPU8 baseline | 모델, MTP off, KV 512MiB, max-seqs 20 | 추가 CPU가 모든 부하에서 service rate를 높이는가 |
+| MTP | CPU8 baseline → CPU8 MTP2 | CPU8, KV 512MiB, max-seqs 20 | speculative decode가 어느 동시성에서 순이득인가 |
+| KV capacity | CPU8 MTP2 KV512 → KV768 | CPU8, MTP2, max-seqs 20 | 더 많은 active request가 처리량도 높이는가 |
+| Scheduler ceiling | CPU8 MTP2 max-seqs20 → 24 | CPU8, MTP2, KV 512MiB | 기존 상한 20이 실제 병목인가 |
+| FP8 KV startup pilot | BF16 KV → FP8 KV | 동일 ARM64 CPU 환경 | backend가 기동 가능한가 |
 
-FP8 KV cache는 성능이 나빴던 것이 아니라 Apple M4/ARM64 CPU backend에 필요한 kernel이 없어 server 초기화 단계에서 실패했다. 실패를 정식 700건 결과에 섞지 않고 당시 console의 예외·Kubernetes event 요약과 복구 절차를 별도 리포트에 기록했다.
+기존 `mtp-kv-tuned*`는 KV `512→768MiB`와 `max-num-seqs 20→24`를 동시에 변경한 **legacy capacity bundle**이다. 두 신규 분리 실험만 KV-only와 maxseq-only의 직접 통제 A/B 비교로 사용한다.
 
-이 결론은 이 장비, 모델, 고정 workload와 단일 반복에 한정된다. 전체 CPU 최적화 공간의 전역 최적값이나 GPU production의 최적 설정을 증명하지 않는다.
+정식 `5,600건`은 8개 정상 기동 설정의 측정 요청이며 warmup은 제외한다. FP8은 API 기동 전에 실패한 별도 startup pilot이므로 여기에 포함하지 않았다.
 
-## 2. 환경과 CPU-only 검증
+### 1.3 핵심 처리량 결과
+
+![핵심 단일 변수별 output throughput](../benchmark/results/comparison-all/charts/core-throughput.svg)
+
+그래프는 CPU6 baseline에서 시작해 CPU8, CPU8+MTP2로 이어지는 controlled chain과, MTP2를 기준으로 KV-only·maxseq-only를 분리해 보여 준다. 모든 동시성의 정확한 수치와 각 열 머리글에 명시한 direct reference 대비 변화율은 [전체 비교표](../benchmark/results/comparison-all/REPORT.md)에 있다.
+
+| 변경 | 핵심 실측 | 병목 진단 | 최종 판정 |
+|---|---|---|---|
+| CPU `6→8` | 모든 C에서 throughput `+11.7~24.8%`; 전체 phase 시간 `-16.5%` | CPU quota가 실제 service rate를 제한 | **채택**. 단, 알고리즘 최적화가 아닌 vertical scaling |
+| MTP2 | C1/2/5 throughput `+27.8/+11.0/+9.3%`, C10/20 `-3.5/-9.9%` | C20에서 TPOT는 낮았지만 peak running `16→5`, waiting `9→15`로 queue trade-off 관찰 | **조건부 채택:** C≤5 후보 |
+| KV `512→768MiB` | C20 run/wait `5/15→8/12`, throughput `-10.4%`, TPOT p95 `+93.1%` | active-context capacity는 증가했지만 KV 이외 CPU-side 자원 압력 가능성과 일치 | **속도 최적화로 미채택** |
+| max-seqs `20→24` | sampled peak running/waiting 불변; C5~100 throughput `0.4~5.4%` 감소 | 상한 20이 binding됐다는 증거 없음 | **미채택**, 50 sweep도 후속으로 보류 |
+| FP8 KV | API server 초기화 실패; 정식 5,600건 밖의 pilot | Apple ARM64 CPU용 FP8 KV kernel 없음 | 성능 결과가 아닌 **compatibility failure** |
+
+Peak running과 peak waiting은 서로 다른 시점의 독립 최댓값이다. 설정당 단일 실행이고 CPU8 C=5의 두 유효 표본도 19.5% 차이가 있었으므로 작은 차이는 반복 검증 전까지 개선으로 확정하지 않는다.
+
+### 1.4 동시성이 커질 때 실제로 무슨 일이 일어났는가
+
+“C가 20을 넘으면 그때부터 같이 처리한다”는 해석은 정확하지 않다. vLLM continuous batching은 C>1부터 여러 요청을 함께 처리한다. 이번 데이터에서 중요한 지점은 **동시성 20이라는 숫자 자체가 아니라, 각 설정의 running capacity와 service 포화점**이다.
+
+| CPU8 baseline | Output tok/s | Peak run/wait | Peak KV | E2E p95 |
+|---:|---:|---:|---:|---:|
+| C=1 | 6.44 | 1 / 0 | 7.5% | 15.61s |
+| C=20 | **16.22** | 16 / 9 | 100% | 109.94s |
+| C=100 | 15.15 | 16 / 91 | 100% | 415.57s |
+
+```mermaid
+flowchart LR
+    A["요청 동시성 증가"] --> B["continuous batch 증가"]
+    B --> C{"아직 compute·memory 여유가 있는가?"}
+    C -->|예| D["hardware 활용률 증가<br/>aggregate throughput 증가"]
+    C -->|아니오| E["service rate 포화"]
+    E --> F["running은 capacity에서 정체"]
+    F --> G["초과 요청은 waiting"]
+    G --> H["TTFT·E2E 급증<br/>throughput은 plateau 또는 소폭 하락"]
+    E --> I{"KV가 binding인가?"}
+    I -->|아니오| N["KV 증량의 scheduler 효과 없음"]
+    I -->|예| J["KV 증량으로 active-context capacity 증가"]
+    J --> K{"남는 execution headroom이 있는가?"}
+    K -->|예| L["batching/preemption 회피로<br/>throughput 개선 가능"]
+    K -->|아니오| M["TPOT·latency 악화 가능<br/>throughput 개선 보장 없음"]
+```
+
+즉, 이 실험에서 동시성을 높이면 CPU8 baseline의 aggregate throughput은 C1 `6.44`에서 C20 `16.22 tok/s`까지 증가했다. 병목 이후에는 C50/100에서도 약 `15 tok/s`로 **포화**됐고, C1/C20/C50/C100 E2E p95는 각각 `15.61/109.94/230.02/415.57초`로 급증했다. “처리량이 계속 크게 떨어졌다”기보다 **총 처리량은 더 늘지 않고 사용자 대기시간이 폭증했다**가 정확한 설명이다.
+
+### 1.5 가정이 틀린 이유
+
+| 처음 가정 | 실제로 개선되는 조건 | 이번 실측이 보여 준 것 |
+|---|---|---|
+| MTP면 모든 구간이 빨라진다 | accepted token으로 절약한 target step 비용이 draft·verification·capacity 비용보다 커야 함 | C20 acceptance 75.8%, TPOT·E2E는 낮았지만 run/wait `16/9→5/15`, TTFT `+41.6%`, throughput `-9.9%` |
+| KV byte budget을 늘리면 모두 빨라진다 | KV가 binding이고, 늘어난 active batch를 처리할 execution headroom이 있어야 함 | MTP C20 run/wait `5/15→8/12`로 capacity는 개선됐지만 TPOT `+93.1%`, E2E `+22.0%`, throughput `-10.4%` |
+| max-seqs를 높이면 동시 처리가 늘어난다 | 실제 running이 기존 상한에 도달해야 함 | 1초 sampled peak가 기준과 같아 상한 20이 binding됐다는 증거가 없음 |
+
+MTP의 TPOT와 active-batch 조건이 함께 달라졌으므로 intrinsic MTP 효과를 분리할 수 없다. KV 증량 뒤의 정확한 CPU-side 제약도 compute/cache/memory/threading으로 분해하지 못했다. 일반 비용 구조는 [Speculative Decoding 원 논문](https://proceedings.mlr.press/v202/leviathan23a.html), KV capacity와 preemption 관계는 [vLLM 최적화 문서](https://docs.vllm.ai/en/v0.26.0/configuration/optimization/)와 [PagedAttention 논문](https://arxiv.org/abs/2309.06180)에 근거한다. 상세 수치와 한계는 9~12절에 보존했다.
+
+`max-num-seqs=50`은 KV를 늘리고 실제 running이 20에 도달하는 조건을 만든 뒤 `8/12/16/20/24/50`으로 sweep한다.
+
+### 1.6 GPU를 사용해도 같은가
+
+**원리는 같지만 결과 숫자와 최적점은 같지 않다.** GPU도 지속 가능한 service rate, KV capacity 또는 scheduler budget을 넘으면 running은 포화되고 초과 요청은 waiting에 쌓여 TTFT/E2E가 급증한다. GPU라고 queueing이 사라지거나 MTP·KV 증량이 전 구간 개선을 보장하지 않는다.
+
+| 관점 | 이번 Apple M4 CPU | GPU production |
+|---|---|---|
+| 공통 원리 | continuous batching → 포화 → waiting 증가 | 동일 |
+| 주된 자원 | 제한된 core quota, CPU cache·DRAM, thread binding | decode의 HBM bandwidth, prefill의 compute, GPU memory·kernel shape |
+| 큰 batch | core/cache 경쟁으로 빨리 손해가 날 수 있음 | 초기에는 parallel utilization이 좋아져 더 큰 이득이 날 수 있지만 결국 포화 |
+| KV 증량 | active slot은 늘었지만 CPU-side pressure 가능성 | KV가 병목이고 GPU에 headroom이 있으면 throughput 개선 가능; 아니면 latency가 악화되고 throughput도 개선되지 않거나 낮아질 수 있음 |
+| MTP | 저동시성 이득, 고동시성 추가 work·capacity trade-off | 동일 trade-off가 존재하나 acceptance, kernel, batch shape에 따라 crossover가 달라짐 |
+| FP8 KV | ARM CPU kernel 미지원으로 startup 실패 | 지원 GPU backend에서 capacity와 품질을 다시 검증 |
+| 필요한 조치 | `baseline-cpu8` 기본, MTP2는 저동시성 조건부 | GPU별로 MTP depth, KV dtype/size, max-seqs, batched tokens를 다시 A/B 측정 |
+
+따라서 이 로컬 결과에서 GPU로 그대로 가져갈 것은 **지표와 실험 방법**이다. `output tok/s`만 보지 말고 `TTFT·TPOT·running·waiting·KV usage·preemption`을 함께 보고, GPU에서는 최적값을 다시 찾아야 한다.
+
+이 결론은 이 장비, 모델, 고정 workload와 설정당 단일 반복에 한정된다. 전체 CPU 최적화 공간의 전역 최적값이나 GPU production의 최적 설정을 증명하지 않는다.
+
+## 2. 상세 근거: 환경과 CPU-only 검증
 
 | 항목 | 실측·고정값 |
 |---|---|
@@ -255,7 +342,7 @@ CPU6은 phase 평균 CPU의 평균 5.65 cores, CPU8은 7.11 cores를 사용해 �
 
 MTP2의 정식 speculative acceptance는 대체로 `75~77%`였다. CPU6에서 MTP는 C=1·2 throughput을 baseline보다 `51.1%`, `30.7%` 높였지만 C≥20에서는 `8.6~12.7%` 낮았다. CPU8에서도 C=1·2·5는 `27.8%`, `11.0%`, `9.3%` 높고 C=10·20은 `3.5%`, `9.9%` 낮았다.
 
-낮은 active sequence에서는 accepted proposal이 memory-bound autoregressive decode 반복을 줄이는 이득이 draft/verification 비용보다 컸다. 고동시성에서는 MTP용 state 때문에 같은 512MiB에서 기동 KV capacity가 baseline 19,894 tokens에서 9,137 tokens로 줄었고, peak running이 5에 머물며 waiting이 늘었다. 따라서 실행 중 요청 하나의 TPOT가 낮아져도 전체 요청의 TTFT와 총 throughput이 좋아진다고 볼 수 없다.
+낮은 동시성에서는 MTP 설정의 throughput이 baseline보다 높았다. 고동시성에서는 같은 512MiB에서 기동 KV capacity가 baseline 19,894 tokens에서 MTP 9,137 tokens로 줄고 peak running이 5에 머물며 waiting이 늘었다. TPOT와 active-batch 조건이 함께 달라져 accepted proposal의 이득과 draft/verification 비용을 component 단위로 분리할 수 없으며, 낮은 TPOT가 전체 요청의 TTFT와 총 throughput 개선을 보장하지 않았다.
 
 Generic MTP 5-token pilot도 기동했지만 모델의 MTP layer가 1개인 상태에서 같은 layer를 반복 forward했다. Acceptance가 약 48%, C=20 throughput이 9.01 token/s로 MTP2보다 낮아 정식 700건 후보에서 제외했다.
 
@@ -437,5 +524,7 @@ make benchmark-compare-all
 - [Qwen3.5-0.8B 공식 model card](https://huggingface.co/Qwen/Qwen3.5-0.8B)와 [고정 checkpoint commit](https://huggingface.co/Qwen/Qwen3.5-0.8B/commit/2fc06364715b967f1860aea9cf38778875588b17)
 - [vLLM 0.26 serve CLI](https://docs.vllm.ai/en/v0.26.0/cli/serve/)와 [CPU 설치·thread/KV/batch 튜닝](https://docs.vllm.ai/en/v0.26.0/getting_started/installation/cpu/)
 - [vLLM MTP](https://docs.vllm.ai/en/v0.26.0/features/speculative_decoding/mtp/)와 [Qwen3.5 공식 recipe](https://github.com/vllm-project/recipes/blob/main/Qwen/Qwen3.5.md)
+- [vLLM 0.26 speculative decoding 개요](https://github.com/vllm-project/vllm/blob/v0.26.0/docs/features/speculative_decoding/README.md), [vLLM 0.26 scheduler/config API](https://docs.vllm.ai/en/v0.26.0/api/vllm/config/vllm/), [큰 GPU batch의 일반 비용 trade-off를 설명한 최신 Adaptive Verification](https://docs.vllm.ai/en/latest/features/speculative_decoding/adaptive_verification/), [Speculative Decoding 원 논문](https://proceedings.mlr.press/v202/leviathan23a.html)
 - [vLLM Automatic Prefix Caching](https://docs.vllm.ai/en/v0.26.0/features/automatic_prefix_caching/)과 [Quantized KV Cache](https://docs.vllm.ai/en/v0.26.0/features/quantization/quantized_kvcache/)
+- [vLLM Optimization and Tuning](https://docs.vllm.ai/en/v0.26.0/configuration/optimization/)과 [PagedAttention/vLLM 원 논문](https://arxiv.org/abs/2309.06180)
 - [vLLM ARM quantization 지원표](https://github.com/vllm-project/vllm/blob/v0.26.0/docs/features/quantization/README.md#supported-hardware)와 [PyTorch CPU oversubscription 지침](https://docs.pytorch.org/docs/stable/notes/multiprocessing.html)

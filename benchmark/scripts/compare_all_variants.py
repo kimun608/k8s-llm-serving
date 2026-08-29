@@ -752,6 +752,34 @@ def create_charts(
         throughput_series,
     )
 
+    # Keep the executive chart intentionally small.  These five series are the
+    # controlled comparisons used by the final report; the two legacy bundle
+    # artifacts remain available in the full chart above.
+    executive_variants = (
+        "baseline",
+        "baseline-cpu8",
+        "mtp-cpu8",
+        "mtp-kv768-cpu8",
+        "mtp-seq24-cpu8",
+    )
+    executive_series = [
+        (
+            SPEC_BY_NAME[name].display_name,
+            [
+                finite(by_variant[name][concurrency]["output_token_throughput_tps"])
+                for concurrency in concurrencies
+            ],
+        )
+        for name in executive_variants
+    ]
+    line_chart(
+        charts_dir / "core-throughput.svg",
+        "Core controlled comparisons: output throughput",
+        "Output tokens / second",
+        concurrencies,
+        executive_series,
+    )
+
     baseline_series = []
     for spec in VARIANTS[1:]:
         baseline_series.append(
@@ -868,6 +896,7 @@ def write_report(
 ## 그래프
 
 - [전체 output throughput](charts/output-throughput.svg)
+- [핵심 단일 변수 비교](charts/core-throughput.svg)
 - [CPU6 baseline 대비 변화율](charts/vs-cpu6-baseline.svg)
 - [같은 CPU의 직전 단독/증분 효과](charts/same-cpu-direct-effect.svg)
 
