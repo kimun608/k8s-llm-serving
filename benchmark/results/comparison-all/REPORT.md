@@ -93,5 +93,6 @@
 - [핵심 단일 변수 비교](charts/core-throughput.svg)
 - [CPU6 baseline 대비 변화율](charts/vs-cpu6-baseline.svg)
 - [같은 CPU의 직전 단독/증분 효과](charts/same-cpu-direct-effect.svg)
+- [KV cache capacity–performance trade-off (C=20)](charts/kv-cache-tradeoff-c20.svg)
 
 원시 값과 전체 지표는 [comparison.csv](comparison.csv)에 저장한다. 단일 실행 간 host background load와 thermal 변동은 제거되지 않으므로 작은 차이는 반복 실험 없이 확정값으로 해석하지 않는다.

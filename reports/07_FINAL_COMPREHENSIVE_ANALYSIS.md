@@ -87,6 +87,10 @@ flowchart LR
 | KV byte budget을 늘리면 모두 빨라진다 | KV가 binding이고, 늘어난 active batch를 처리할 execution headroom이 있어야 함 | MTP C20 run/wait `5/15→8/12`로 capacity는 개선됐지만 TPOT `+93.1%`, E2E `+22.0%`, throughput `-10.4%` |
 | max-seqs를 높이면 동시 처리가 늘어난다 | 실제 running이 기존 상한에 도달해야 함 | 1초 sampled peak가 기준과 같아 상한 20이 binding됐다는 증거가 없음 |
 
+![KV cache 증량의 capacity-performance trade-off](../benchmark/results/comparison-all/charts/kv-cache-tradeoff-c20.svg)
+
+이 그림은 CPU8·MTP2·`max-num-seqs=20`을 고정한 C=20 직접 비교를 시각화한다. **KV 증량은 active-context 수용량 조정이지 per-token CPU 연산 가속과 동의어가 아니며**, 정확한 CPU-side 악화 원인은 profiler 없이 더 세분하지 않는다.
+
 MTP의 TPOT와 active-batch 조건이 함께 달라졌으므로 intrinsic MTP 효과를 분리할 수 없다. KV 증량 뒤의 정확한 CPU-side 제약도 compute/cache/memory/threading으로 분해하지 못했다. 일반 비용 구조는 [Speculative Decoding 원 논문](https://proceedings.mlr.press/v202/leviathan23a.html), KV capacity와 preemption 관계는 [vLLM 최적화 문서](https://docs.vllm.ai/en/v0.26.0/configuration/optimization/)와 [PagedAttention 논문](https://arxiv.org/abs/2309.06180)에 근거한다. 상세 수치와 한계는 9~12절에 보존했다.
 
 `max-num-seqs=50`은 KV를 늘리고 실제 running이 20에 도달하는 조건을 만든 뒤 `8/12/16/20/24/50`으로 sweep한다.

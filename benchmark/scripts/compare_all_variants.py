@@ -724,6 +724,204 @@ def line_chart(
     path.write_text("\n".join(parts) + "\n", encoding="utf-8")
 
 
+def kv_cache_tradeoff_chart(
+    path: Path,
+    by_variant: dict[str, dict[int, dict[str, Any]]],
+    concurrency: int = 20,
+) -> None:
+    """Show the controlled KV-byte-budget trade-off without mixing metric units."""
+    reference_spec = SPEC_BY_NAME["mtp-cpu8"]
+    tuned_spec = SPEC_BY_NAME["mtp-kv768-cpu8"]
+    reference = by_variant[reference_spec.name][concurrency]
+    tuned = by_variant[tuned_spec.name][concurrency]
+
+    running_before = finite(reference["peak_running_requests"])
+    running_after = finite(tuned["peak_running_requests"])
+    waiting_before = finite(reference["peak_waiting_requests"])
+    waiting_after = finite(tuned["peak_waiting_requests"])
+    scheduler_values = (
+        running_before,
+        running_after,
+        waiting_before,
+        waiting_after,
+    )
+    if any(not math.isfinite(value) or value < 0 for value in scheduler_values):
+        raise ComparisonError(
+            f"KV trade-off C={concurrency}: scheduler peaks must be finite and nonnegative"
+        )
+    performance_metrics = (
+        (
+            "Output throughput",
+            "tok/s",
+            finite(reference["output_token_throughput_tps"]),
+            finite(tuned["output_token_throughput_tps"]),
+            False,
+        ),
+        (
+            "TPOT p95",
+            "ms/token",
+            finite(reference["tpot_ms_p95"]),
+            finite(tuned["tpot_ms_p95"]),
+            True,
+        ),
+        (
+            "E2E p95",
+            "seconds",
+            finite(reference["e2e_seconds_p95"]),
+            finite(tuned["e2e_seconds_p95"]),
+            True,
+        ),
+    )
+    throughput_delta = percent_change(
+        performance_metrics[0][2], performance_metrics[0][3]
+    )
+    tpot_delta = percent_change(performance_metrics[1][2], performance_metrics[1][3])
+    e2e_delta = percent_change(performance_metrics[2][2], performance_metrics[2][3])
+    metric_values = [
+        value
+        for _label, _unit, before, after, _lower_is_better in performance_metrics
+        for value in (before, after)
+    ]
+    if any(not math.isfinite(value) or value <= 0 for value in metric_values):
+        raise ComparisonError(
+            f"KV trade-off C={concurrency}: performance values must be finite and positive"
+        )
+    accessibility_description = (
+        f"With CPU8, MTP2 and max-num-seqs 20 fixed, increasing the KV cache "
+        f"from {reference_spec.kv_mib} to {tuned_spec.kv_mib} MiB changed peak "
+        f"running requests from {running_before:.0f} to {running_after:.0f} and "
+        f"peak waiting requests from {waiting_before:.0f} to "
+        f"{waiting_after:.0f}. Output throughput changed {throughput_delta:+.1f} "
+        f"percent, TPOT p95 changed {tpot_delta:+.1f} percent, and E2E p95 changed "
+        f"{e2e_delta:+.1f} percent. Running and waiting are independently sampled "
+        "peaks."
+    )
+
+    width, height = 1280, 720
+    before_color = "#2563eb"
+    after_color = "#7c3aed"
+    running_color = "#059669"
+    waiting_color = "#ea580c"
+    neutral = "#4b5563"
+    border = "#d1d5db"
+    grid = "#e5e7eb"
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="kv-title kv-desc">',
+        f'<title id="kv-title">KV cache byte-budget trade-off at concurrency {concurrency}</title>',
+        f'<desc id="kv-desc">{html.escape(accessibility_description)}</desc>',
+        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#ffffff"/>',
+        '<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/></marker></defs>',
+        '<text x="640" y="38" text-anchor="middle" font-size="24" font-family="sans-serif" font-weight="600">KV cache 증량의 capacity–performance trade-off</text>',
+        f'<text x="640" y="64" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#4b5563">Controlled A/B: CPU 8 · MTP2 · max-num-seqs 20 고정 · concurrency {concurrency}</text>',
+    ]
+
+    panels = ((45, 92, 330, 485), (420, 92, 350, 485), (815, 92, 420, 485))
+    for x, y, panel_width, panel_height in panels:
+        parts.append(
+            f'<rect x="{x}" y="{y}" width="{panel_width}" height="{panel_height}" fill="none" stroke="{border}"/>'
+        )
+
+    # 1) Changed input: KV byte budget only.
+    parts.extend(
+        (
+            '<text x="67" y="124" font-size="18" font-family="sans-serif" font-weight="600">1. 변경한 값: KV byte budget</text>',
+            '<text x="67" y="153" font-size="15" font-family="sans-serif" fill="#4b5563">KV512 (reference)</text>',
+            f'<rect x="67" y="165" width="{220 * reference_spec.kv_mib / tuned_spec.kv_mib:.1f}" height="35" fill="{before_color}"/>',
+            f'<text x="{75 + 220 * reference_spec.kv_mib / tuned_spec.kv_mib:.1f}" y="188" font-size="15" font-family="sans-serif" fill="#111827">{reference_spec.kv_mib} MiB</text>',
+            '<text x="67" y="233" font-size="15" font-family="sans-serif" fill="#4b5563">KV768 (increased)</text>',
+            f'<rect x="67" y="245" width="220" height="35" fill="{after_color}"/>',
+            f'<text x="295" y="268" font-size="15" font-family="sans-serif" fill="#111827">{tuned_spec.kv_mib} MiB</text>',
+            f'<text x="67" y="322" font-size="22" font-family="sans-serif" font-weight="600" fill="{after_color}">+{percent_change(reference_spec.kv_mib, tuned_spec.kv_mib):.0f}% bytes</text>',
+            '<line x1="67" y1="345" x2="353" y2="345" stroke="#e5e7eb"/>',
+            '<text x="67" y="378" font-size="15" font-family="sans-serif" fill="#111827">고정 조건</text>',
+            '<text x="67" y="405" font-size="15" font-family="sans-serif" fill="#4b5563">• model / BF16 weights</text>',
+            '<text x="67" y="430" font-size="15" font-family="sans-serif" fill="#4b5563">• CPU limit 8 · MTP2</text>',
+            '<text x="67" y="455" font-size="15" font-family="sans-serif" fill="#4b5563">• max-num-seqs 20</text>',
+            '<text x="67" y="480" font-size="15" font-family="sans-serif" fill="#4b5563">• 동일 100 prompts / 출력 tokens</text>',
+        )
+    )
+
+    # 2) Scheduler observations. Running and waiting use separate bars because
+    # their sampled peaks need not occur at the same instant.
+    scheduler_width = 210
+    scheduler_max = max(*scheduler_values, 1.0)
+    parts.extend(
+        (
+            '<text x="442" y="124" font-size="18" font-family="sans-serif" font-weight="600">2. 관찰: scheduler peak 변화</text>',
+            f'<text x="442" y="164" font-size="15" font-family="sans-serif" font-weight="600" fill="{running_color}">Peak running requests</text>',
+            '<text x="442" y="196" font-size="14" font-family="sans-serif" fill="#4b5563">512</text>',
+            f'<rect x="482" y="181" width="{scheduler_width * running_before / scheduler_max:.1f}" height="21" fill="{running_color}"/>',
+            f'<text x="{490 + scheduler_width * running_before / scheduler_max:.1f}" y="197" font-size="14" font-family="sans-serif">{running_before:.0f}</text>',
+            '<text x="442" y="230" font-size="14" font-family="sans-serif" fill="#4b5563">768</text>',
+            f'<rect x="482" y="215" width="{scheduler_width * running_after / scheduler_max:.1f}" height="21" fill="{running_color}"/>',
+            f'<text x="{490 + scheduler_width * running_after / scheduler_max:.1f}" y="231" font-size="14" font-family="sans-serif">{running_after:.0f}</text>',
+            f'<text x="442" y="280" font-size="15" font-family="sans-serif" font-weight="600" fill="{waiting_color}">Peak waiting requests</text>',
+            '<text x="442" y="312" font-size="14" font-family="sans-serif" fill="#4b5563">512</text>',
+            f'<rect x="482" y="297" width="{scheduler_width * waiting_before / scheduler_max:.1f}" height="21" fill="{waiting_color}"/>',
+            f'<text x="{490 + scheduler_width * waiting_before / scheduler_max:.1f}" y="313" font-size="14" font-family="sans-serif">{waiting_before:.0f}</text>',
+            '<text x="442" y="346" font-size="14" font-family="sans-serif" fill="#4b5563">768</text>',
+            f'<rect x="482" y="331" width="{scheduler_width * waiting_after / scheduler_max:.1f}" height="21" fill="{waiting_color}"/>',
+            f'<text x="{490 + scheduler_width * waiting_after / scheduler_max:.1f}" y="347" font-size="14" font-family="sans-serif">{waiting_after:.0f}</text>',
+            f'<text x="442" y="400" font-size="20" font-family="sans-serif" font-weight="600" fill="{running_color}">running {running_before:.0f} → {running_after:.0f}</text>',
+            f'<text x="442" y="431" font-size="20" font-family="sans-serif" font-weight="600" fill="{waiting_color}">waiting {waiting_before:.0f} → {waiting_after:.0f}</text>',
+            '<text x="442" y="480" font-size="14" font-family="sans-serif" fill="#4b5563">※ run/wait는 1초 metric의 독립 peak</text>',
+            '<text x="442" y="503" font-size="14" font-family="sans-serif" fill="#4b5563">값이며 같은 시점의 합이 아니다.</text>',
+        )
+    )
+
+    # 3) Performance small multiples: every metric gets its own scale.
+    parts.extend(
+        (
+            '<text x="837" y="124" font-size="18" font-family="sans-serif" font-weight="600">3. 관찰: 성능 지표 변화</text>',
+            f'<rect x="837" y="141" width="13" height="13" fill="{before_color}"/><text x="858" y="153" font-size="14" font-family="sans-serif" fill="{neutral}">KV512</text>',
+            f'<rect x="925" y="141" width="13" height="13" fill="{after_color}"/><text x="946" y="153" font-size="14" font-family="sans-serif" fill="{neutral}">KV768</text>',
+        )
+    )
+    metric_top = 190
+    metric_gap = 122
+    bar_x = 875
+    bar_width = 245
+    for index, (label, unit, before, after, lower_is_better) in enumerate(
+        performance_metrics
+    ):
+        y = metric_top + index * metric_gap
+        maximum = max(before, after) * 1.08
+        before_width = bar_width * before / maximum
+        after_width = bar_width * after / maximum
+        delta = percent_change(before, after)
+        improving = delta < 0 if lower_is_better else delta > 0
+        if abs(delta) < 0.05:
+            delta_color = neutral
+        else:
+            delta_color = "#059669" if improving else "#b91c1c"
+        parts.extend(
+            (
+                f'<text x="837" y="{y}" font-size="15" font-family="sans-serif" font-weight="600">{html.escape(label)} <tspan fill="{neutral}" font-weight="400">({html.escape(unit)})</tspan></text>',
+                f'<text x="1211" y="{y}" text-anchor="end" font-size="15" font-family="sans-serif" font-weight="600" fill="{delta_color}">{delta:+.1f}%</text>',
+                f'<line x1="{bar_x}" y1="{y + 28}" x2="{bar_x + bar_width}" y2="{y + 28}" stroke="{grid}"/>',
+                f'<text x="837" y="{y + 34}" font-size="14" font-family="sans-serif" fill="{neutral}">512</text>',
+                f'<rect x="{bar_x}" y="{y + 17}" width="{before_width:.1f}" height="18" fill="{before_color}"/>',
+                f'<text x="{bar_x + before_width + 7:.1f}" y="{y + 31}" font-size="14" font-family="sans-serif" fill="#111827">{before:.2f}</text>',
+                f'<line x1="{bar_x}" y1="{y + 57}" x2="{bar_x + bar_width}" y2="{y + 57}" stroke="{grid}"/>',
+                f'<text x="837" y="{y + 63}" font-size="14" font-family="sans-serif" fill="{neutral}">768</text>',
+                f'<rect x="{bar_x}" y="{y + 46}" width="{after_width:.1f}" height="18" fill="{after_color}"/>',
+                f'<text x="{bar_x + after_width + 7:.1f}" y="{y + 60}" font-size="14" font-family="sans-serif" fill="#111827">{after:.2f}</text>',
+            )
+        )
+
+    parts.extend(
+        (
+            '<line x1="375" y1="334" x2="409" y2="334" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>',
+            '<line x1="770" y1="334" x2="804" y2="334" stroke="#6b7280" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow)"/>',
+            '<text x="640" y="615" text-anchor="middle" font-size="20" font-family="sans-serif" font-weight="600">결론: KV capacity 변화 ≠ per-token speed 가속 보장</text>',
+            '<text x="640" y="646" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#374151">같은 CPU8에서 scheduler peak와 throughput·TPOT·E2E가 함께 변했다.</text>',
+            '<text x="640" y="673" text-anchor="middle" font-size="15" font-family="sans-serif" fill="#4b5563">KV 이외의 CPU-side 자원 압력과 일치하지만, 정확한 원인은 profiler로 추가 분해해야 한다.</text>',
+        )
+    )
+    parts.append("</svg>")
+    path.write_text("\n".join(parts) + "\n", encoding="utf-8")
+
+
 def create_charts(
     charts_dir: Path,
     loaded: dict[str, tuple[list[dict], dict]],
@@ -827,6 +1025,10 @@ def create_charts(
         concurrencies,
         direct_series,
     )
+    kv_cache_tradeoff_chart(
+        charts_dir / "kv-cache-tradeoff-c20.svg",
+        by_variant,
+    )
 
 
 def write_report(
@@ -899,6 +1101,7 @@ def write_report(
 - [핵심 단일 변수 비교](charts/core-throughput.svg)
 - [CPU6 baseline 대비 변화율](charts/vs-cpu6-baseline.svg)
 - [같은 CPU의 직전 단독/증분 효과](charts/same-cpu-direct-effect.svg)
+- [KV cache capacity–performance trade-off (C=20)](charts/kv-cache-tradeoff-c20.svg)
 
 원시 값과 전체 지표는 [comparison.csv](comparison.csv)에 저장한다. 단일 실행 간 host background load와 thermal 변동은 제거되지 않으므로 작은 차이는 반복 실험 없이 확정값으로 해석하지 않는다.
 """
