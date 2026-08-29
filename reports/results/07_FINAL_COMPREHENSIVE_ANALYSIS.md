@@ -1,6 +1,6 @@
 # 최종 종합 분석: 로컬 CPU vLLM 서빙과 최적화
 
-> 이 문서는 전체 수치와 감사 근거를 보존한 상세 evidence compendium이다. 제출용 서술과 최종 권고는 [논문형 최종 보고서](final-report.md)를 따른다.
+> 이 문서는 전체 수치와 감사 근거를 보존한 상세 evidence compendium이다. 제출용 서술과 최종 권고는 [논문형 최종 보고서](../final_report.md)를 따른다.
 
 ## 1. 최종 결과 한눈에 보기
 
@@ -38,9 +38,9 @@
 
 ### 1.3 핵심 처리량 결과
 
-![핵심 단일 변수별 output throughput](../benchmark/results/comparison-all/charts/core-throughput.svg)
+![핵심 단일 변수별 output throughput](../../benchmark/results/comparison-all/charts/core-throughput.svg)
 
-그래프는 CPU6 baseline에서 시작해 CPU8, CPU8+MTP2로 이어지는 controlled chain과, MTP2를 기준으로 KV-only·maxseq-only를 분리해 보여 준다. 모든 동시성의 정확한 수치와 각 열 머리글에 명시한 direct reference 대비 변화율은 [전체 비교표](../benchmark/results/comparison-all/REPORT.md)에 있다.
+그래프는 CPU6 baseline에서 시작해 CPU8, CPU8+MTP2로 이어지는 controlled chain과, MTP2를 기준으로 KV-only·maxseq-only를 분리해 보여 준다. 모든 동시성의 정확한 수치와 각 열 머리글에 명시한 direct reference 대비 변화율은 [전체 비교표](../../benchmark/results/comparison-all/REPORT.md)에 있다.
 
 | 변경 | 핵심 실측 | 병목 진단 | 최종 판정 |
 |---|---|---|---|
@@ -62,7 +62,7 @@ Peak running과 peak waiting은 서로 다른 시점의 독립 최댓값이다. 
 | C=20 | **16.22** | 16 / 9 | 100% | 109.94s |
 | C=100 | 15.15 | 16 / 91 | 100% | 415.57s |
 
-![동시성 증가에 따른 peak KV cache 점유](../benchmark/results/comparison-all/charts/kv-cache-growth-by-concurrency.svg)
+![동시성 증가에 따른 peak KV cache 점유](../../benchmark/results/comparison-all/charts/kv-cache-growth-by-concurrency.svg)
 
 위 그래프는 CPU8·MTP2·`max-num-seqs=20`을 고정하고 KV budget만 `512/768MiB`로 바꾼 직접 비교다. 위 패널의 MiB-equivalent는 `configured KV budget ×` [vLLM used-block fraction](https://docs.vllm.ai/en/stable/design/metrics/)으로 환산한 block-capacity 추정치이며 실제 Pod RSS가 아니다. C=1/2/5에서는 두 설정이 약 `98/188/465MiB`로 비슷했지만, KV512는 C=5부터 약 `467MiB`에서 plateau했고 KV768은 C=10에서 약 `741MiB`까지 추가 공간을 사용한 뒤 plateau했다. 아래 패널의 `%`는 설정별 분모가 다르며, 값은 1초 sampled peak다. 선은 측정한 C만 연결하며 미측정 구간을 증명하지 않는다.
 
@@ -128,7 +128,7 @@ MTP의 TPOT와 active-batch 조건이 함께 달라졌으므로 intrinsic MTP �
 | GPU·Metal·cloud | 사용하지 않음; Kubernetes GPU resource 요청도 없음 |
 | Service | `llm-serving/vllm-cpu`, ClusterIP port 8000 |
 
-동일한 image를 control-plane과 worker의 containerd에 로드하고, Linux/ARM64 및 worker role `nodeSelector`로 추론 Pod를 worker에만 배치했다. 애플리케이션 image 이름에 master/worker를 넣지 않는다. CPU8의 cgroup `cpu.max=800000 100000`은 100ms period당 최대 800ms CPU time임을 확인한다. 최초 과제 단계의 환경·빌드·배포 증거는 [컨테이너·클러스터 리포트](01_CONTAINER_CLUSTER_DEPLOYMENT.md), [build metadata](../results/build-metadata.txt), [cluster metadata](../results/cluster-metadata.txt), [deployment metadata](../results/deployment-metadata.txt)에 보존했다. 모든 실험 후에는 image를 다시 빌드해 두 노드에 로드하고 `baseline-cpu8`로 복구했으며, 현재 image ID·args·CPU-only·smoke 결과는 [final-state metadata](../results/final-state-metadata.txt)에 별도로 기록했다. 정식 8개 run의 captured container image ID는 모두 `53e0d7…`로 같고, 최종 rebuild는 Docker 단독 실행의 CMD에도 이미 K8s가 명시하던 KV 512MiB 인자를 추가해 config ID가 `4d3369…`로 바뀌었다. K8s의 명시적 container args와 실행 파라미터는 변하지 않았다.
+동일한 image를 control-plane과 worker의 containerd에 로드하고, Linux/ARM64 및 worker role `nodeSelector`로 추론 Pod를 worker에만 배치했다. 애플리케이션 image 이름에 master/worker를 넣지 않는다. CPU8의 cgroup `cpu.max=800000 100000`은 100ms period당 최대 800ms CPU time임을 확인한다. 최초 과제 단계의 환경·빌드·배포 증거는 [컨테이너·클러스터 리포트](01_CONTAINER_CLUSTER_DEPLOYMENT.md), [build metadata](deployment/build-metadata.txt), [cluster metadata](deployment/cluster-metadata.txt), [deployment metadata](deployment/deployment-metadata.txt)에 보존했다. 모든 실험 후에는 image를 다시 빌드해 두 노드에 로드하고 `baseline-cpu8`로 복구했으며, 현재 image ID·args·CPU-only·smoke 결과는 [final-state metadata](deployment/final-state-metadata.txt)에 별도로 기록했다. 정식 8개 run의 captured container image ID는 모두 `53e0d7…`로 같고, 최종 rebuild는 Docker 단독 실행의 CMD에도 이미 K8s가 명시하던 KV 512MiB 인자를 추가해 config ID가 `4d3369…`로 바뀌었다. K8s의 명시적 container args와 실행 파라미터는 변하지 않았다.
 
 Docker VM 메모리가 물리 RAM보다 작고 한 Pod가 최대 6GiB 이상을 사용하므로 control-plane 1개와 worker 1개, replica 1로 제한했다. 이 때문에 optional HPA scale-out과 worker 장애 후 다른 worker로의 재스케줄은 현재 환경에서 의미 있게 검증하지 않았다.
 
@@ -146,7 +146,7 @@ Docker VM 메모리가 물리 RAM보다 작고 한 Pod가 최대 6GiB 이상을 
 
 더 작은 Qwen2.5-0.5B도 검토했지만 native MTP head가 없어 과제의 speculative decoding 비교를 수행할 수 없었다. Qwen3.5-0.8B를 선택함으로써 모델·weight·정밀도를 유지하고 runtime 설정의 차이를 비교했다.
 
-컨테이너는 공식 ARM64 CPU image `vllm/vllm-openai-cpu:v0.26.0-arm64`를 digest `sha256:5966fcc14fe241ee7f2dc3d3fd5610ed12968eb9c0d096e1089802b79681efc4`로 고정했다. 모델을 image의 `/models/qwen3.5-0.8b`에 포함하고 Hugging Face/Transformers offline mode를 사용해 Pod 시작 시간과 외부 네트워크 상태를 분리했다. image 정의는 [Dockerfile](../model_serving/Dockerfile), 실제 배포는 [Deployment](../model_serving/k8s/base/deployment.yaml)에 있다.
+컨테이너는 공식 ARM64 CPU image `vllm/vllm-openai-cpu:v0.26.0-arm64`를 digest `sha256:5966fcc14fe241ee7f2dc3d3fd5610ed12968eb9c0d096e1089802b79681efc4`로 고정했다. 모델을 image의 `/models/qwen3.5-0.8b`에 포함하고 Hugging Face/Transformers offline mode를 사용해 Pod 시작 시간과 외부 네트워크 상태를 분리했다. image 정의는 [Dockerfile](../../model_serving/Dockerfile), 실제 배포는 [Deployment](../../model_serving/k8s/base/deployment.yaml)에 있다.
 
 ## 4. 명시한 파라미터와 기본값으로 둔 항목
 
@@ -208,7 +208,7 @@ CPU8은 Docker VM의 10 vCPU를 전부 Pod에 주지 않고 8만 허용해 contr
 | TruthfulQA | 790 | 25 | Question에 간결하고 사실적인 답변 지시문 추가 |
 | LongBench Qasper | 200 | 25 | 논문 context와 input question 결합 |
 
-고정 seed `20260828`에 source별 offset 0/1000/2000/3000을 더해 비복원 `random.sample`로 각각 25건을 선택했다. 선택 후 `GSM8K→HumanEval→TruthfulQA→Qasper` 순서로 한 건씩 interleave해 매 phase에 동일한 balanced order를 사용했다. 정답률·perplexity·코드 실행을 평가하지 않으며, 공개 데이터는 서로 다른 입력 형태와 길이를 만드는 serving workload로만 사용한다. 생성 과정은 [prepare_dataset.py](../benchmark/scripts/prepare_dataset.py), 원본 metadata는 [source-manifest.json](../benchmark/data/source-manifest.json), 실제 입력은 [prompts.jsonl](../benchmark/data/prompts.jsonl)에 있다.
+고정 seed `20260828`에 source별 offset 0/1000/2000/3000을 더해 비복원 `random.sample`로 각각 25건을 선택했다. 선택 후 `GSM8K→HumanEval→TruthfulQA→Qasper` 순서로 한 건씩 interleave해 매 phase에 동일한 balanced order를 사용했다. 정답률·perplexity·코드 실행을 평가하지 않으며, 공개 데이터는 서로 다른 입력 형태와 길이를 만드는 serving workload로만 사용한다. 생성 과정은 [prepare_dataset.py](../../benchmark/scripts/prepare_dataset.py), 원본 metadata는 [source-manifest.json](../../benchmark/data/source-manifest.json), 실제 입력은 [prompts.jsonl](../../benchmark/data/prompts.jsonl)에 있다.
 
 Qasper context는 선택 순서에 따라 `1,800 / 2,400 / 3,000 / 3,600 / 4,200`자 budget을 순환해 각 길이를 5건씩 만든다. 이는 token bucket이 아니라 문자 단위 절단이며 문장 중간이 잘릴 수 있다. 실행 전 `/tokenize`로 system+user+chat template 전체 길이를 다시 검사해 input + output이 2,048을 넘는 요청을 거부한다.
 
@@ -290,7 +290,7 @@ E2E, TTFT, TPOT의 p95는 서로 다른 요청이 percentile 위치를 차지할
 - 종합 비교기는 8개 `summary.json`을 raw request/metric에서 다시 집계해 stale summary를 거부하고, 시작 snapshot의 Pod image ID가 모두 같은지 검증
 - Prefix cache hit 0, OOM kill 0; 각 run 시작 manifest의 Pod restart count 0
 - CPU6 baseline C=2와 CPU8 baseline C=10의 초기 표본은 host suspension으로 UTC wall clock과 monotonic timer가 각각 5,365.15초, 8,169.92초 벌어져 제외 후 재측정
-- 제외한 request/metric/phase 자료와 이유를 [baseline/excluded](../benchmark/results/baseline/excluded/) 및 [baseline-cpu8/excluded](../benchmark/results/baseline-cpu8/excluded/)에 보존
+- 제외한 request/metric/phase 자료와 이유를 [baseline/excluded](../../benchmark/results/baseline/excluded/) 및 [baseline-cpu8/excluded](../../benchmark/results/baseline-cpu8/excluded/)에 보존
 - CPU8 C=5 첫 표본은 timer와 metric이 유효하지만 사용자 요청으로 한 번 더 측정했으며 두 표본의 throughput 차이는 19.5%
 
 따라서 실패·중단 표본을 숨기지 않았지만, 유효한 C=5 두 표본 중 최신값을 공식 비교에 사용한 선택 효과와 단일 반복의 변동은 남는다.
@@ -310,7 +310,7 @@ E2E, TTFT, TPOT의 p95는 서로 다른 요청이 percentile 위치를 차지할
 | `mtp-seq24-cpu8` | 8 | MTP2 | 512MiB | 24 | `max-num-seqs` 단독 변경 |
 | `mtp-kv-tuned-cpu8` | 8 | MTP2 | 768MiB | 24 | Legacy capacity bundle |
 
-`mtp-kv-tuned*`라는 ID는 Make target·결과 경로 재현성을 위해 유지한다. 해석과 사용자 표시에서는 KV-only가 아니라 capacity bundle로 부른다. 전체 인과성 행렬은 [최적화 실험 매트릭스](../optimization/EXPERIMENT_MATRIX.md)에 있다.
+`mtp-kv-tuned*`라는 ID는 Make target·결과 경로 재현성을 위해 유지한다. 해석과 사용자 표시에서는 KV-only가 아니라 capacity bundle로 부른다. 전체 인과성 행렬은 [최적화 실험 매트릭스](../../optimization/EXPERIMENT_MATRIX.md)에 있다.
 
 ### 9.2 Output throughput
 
@@ -328,7 +328,7 @@ E2E, TTFT, TPOT의 p95는 서로 다른 요청이 percentile 위치를 차지할
 
 ¹ CPU8 C=5는 두 번째 유효 표본을 공식값으로 사용했다. 첫 유효 표본은 11.01 token/s였고 원자료를 보존했다.
 
-원본 표와 그래프는 [CPU6 비교](../benchmark/results/comparison/), [CPU6 분석](04_OPTIMIZATION_FINAL_ANALYSIS.md), [CPU8 baseline 비교](../benchmark/results/comparison-cpu8/), [CPU8 CPU-limit 분석](05_BASELINE_CPU8_ANALYSIS.md), [CPU8 MTP·bundle 비교](../benchmark/results/comparison-cpu8-optimizations/), [CPU8 최적화 분석](06_CPU8_MTP_KV_ANALYSIS.md)에 있다.
+원본 표와 그래프는 [CPU6 비교](../../benchmark/results/comparison/), [CPU6 분석](04_OPTIMIZATION_FINAL_ANALYSIS.md), [CPU8 baseline 비교](../../benchmark/results/comparison-cpu8/), [CPU8 CPU-limit 분석](05_BASELINE_CPU8_ANALYSIS.md), [CPU8 MTP·bundle 비교](../../benchmark/results/comparison-cpu8-optimizations/), [CPU8 최적화 분석](06_CPU8_MTP_KV_ANALYSIS.md)에 있다.
 
 ### 9.3 CPU limit 6→8 단일 변경
 
@@ -371,7 +371,7 @@ CPU8 bundle은 6.5GiB limit까지 약 0.16GiB만 남겼다. 로컬 정식 요청
 
 ## 10. KV-only와 max-num-seqs-only 분리 실험
 
-기존 bundle의 confound를 제거하기 위해 CPU8·MTP2를 고정한 `KV 512/768MiB × max-num-seqs 20/24` 2×2를 완성했다. 기준과 combined 셀은 기존 결과를 사용하고 KV-only 및 seq-only 셀을 [분리 실험 계획](../optimization/cpu8-factorial/README.md)의 동일 700-request protocol로 새로 측정했다.
+기존 bundle의 confound를 제거하기 위해 CPU8·MTP2를 고정한 `KV 512/768MiB × max-num-seqs 20/24` 2×2를 완성했다. 기준과 combined 셀은 기존 결과를 사용하고 KV-only 및 seq-only 셀을 [분리 실험 계획](../../optimization/cpu8-factorial/README.md)의 동일 700-request protocol로 새로 측정했다.
 
 ### 10.1 Output throughput
 
@@ -387,7 +387,7 @@ CPU8 bundle은 6.5GiB limit까지 약 0.16GiB만 남겼다. 로컬 정식 요청
 | 50 | 15.03 | 14.89 | 14.35 | 14.46 | 14.33 | -3.6% | -2.9% | -3.7% |
 | 100 | 15.15 | 15.18 | 14.85 | 14.35 | 13.66 | -2.1% | -5.4% | -10.0% |
 
-CPU6 baseline을 공통 기준으로 한 56개 행의 변화율은 [전체 자동 비교](../benchmark/results/comparison-all/REPORT.md)와 [comparison.csv](../benchmark/results/comparison-all/comparison.csv)에 있다. 단일 변수의 인과효과는 CPU limit과 MTP까지 같은 `MTP2 기준` 열에서 판단한다.
+CPU6 baseline을 공통 기준으로 한 56개 행의 변화율은 [전체 자동 비교](../../benchmark/results/comparison-all/REPORT.md)와 [comparison.csv](../../benchmark/results/comparison-all/comparison.csv)에 있다. 단일 변수의 인과효과는 CPU limit과 MTP까지 같은 `MTP2 기준` 열에서 판단한다.
 
 ### 10.2 Scheduler·latency 관찰
 
@@ -512,17 +512,17 @@ make benchmark-mtp-kv-tuned-cpu8
 make benchmark-compare-all
 ```
 
-- 클러스터 설치: [k8s/README.md](../k8s/README.md)
-- Image·Kubernetes 배포: [model_serving/README.md](../model_serving/README.md)
-- Dataset·부하 실행: [benchmark/README.md](../benchmark/README.md)
-- 베이스라인 원본: [benchmark/results/baseline](../benchmark/results/baseline/)
-- CPU8 baseline 원본: [benchmark/results/baseline-cpu8](../benchmark/results/baseline-cpu8/)
-- CPU8 MTP 원본: [benchmark/results/mtp-cpu8](../benchmark/results/mtp-cpu8/)
-- CPU8 KV-only 원본: [benchmark/results/mtp-kv768-cpu8](../benchmark/results/mtp-kv768-cpu8/)
-- CPU8 maxseq-only 원본: [benchmark/results/mtp-seq24-cpu8](../benchmark/results/mtp-seq24-cpu8/)
-- CPU8 legacy bundle 원본: [benchmark/results/mtp-kv-tuned-cpu8](../benchmark/results/mtp-kv-tuned-cpu8/)
-- 전체 5,600건 자동 검증·그래프: [benchmark/results/comparison-all](../benchmark/results/comparison-all/)
-- 전체 실험 매트릭스: [optimization/EXPERIMENT_MATRIX.md](../optimization/EXPERIMENT_MATRIX.md)
+- 클러스터 설치: [k8s/README.md](../../k8s/README.md)
+- Image·Kubernetes 배포: [model_serving/README.md](../../model_serving/README.md)
+- Dataset·부하 실행: [benchmark/README.md](../../benchmark/README.md)
+- 베이스라인 원본: [benchmark/results/baseline](../../benchmark/results/baseline/)
+- CPU8 baseline 원본: [benchmark/results/baseline-cpu8](../../benchmark/results/baseline-cpu8/)
+- CPU8 MTP 원본: [benchmark/results/mtp-cpu8](../../benchmark/results/mtp-cpu8/)
+- CPU8 KV-only 원본: [benchmark/results/mtp-kv768-cpu8](../../benchmark/results/mtp-kv768-cpu8/)
+- CPU8 maxseq-only 원본: [benchmark/results/mtp-seq24-cpu8](../../benchmark/results/mtp-seq24-cpu8/)
+- CPU8 legacy bundle 원본: [benchmark/results/mtp-kv-tuned-cpu8](../../benchmark/results/mtp-kv-tuned-cpu8/)
+- 전체 5,600건 자동 검증·그래프: [benchmark/results/comparison-all](../../benchmark/results/comparison-all/)
+- 전체 실험 매트릭스: [optimization/EXPERIMENT_MATRIX.md](../../optimization/EXPERIMENT_MATRIX.md)
 - 상세 단계별 리포트: [01](01_CONTAINER_CLUSTER_DEPLOYMENT.md), [02](02_BASELINE_BENCHMARK.md), [03](03_FAILED_OPTIMIZATION_FP8_KV.md), [04](04_OPTIMIZATION_FINAL_ANALYSIS.md), [05](05_BASELINE_CPU8_ANALYSIS.md), [06](06_CPU8_MTP_KV_ANALYSIS.md)
 
 ## 16. 공식 근거

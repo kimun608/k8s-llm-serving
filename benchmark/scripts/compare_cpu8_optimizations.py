@@ -358,7 +358,7 @@ Peak running과 peak waiting은 각 시계열에서 독립적으로 구한 최�
 - [Pod CPU](charts/pod-cpu.svg)
 - [MTP acceptance](charts/mtp-acceptance.svg)
 
-이 문서는 원시 결과에서 자동 생성한 사실표다. 원인과 최종 권고는 [CPU8 MTP·capacity bundle 분석 리포트](../../../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 정리한다.
+이 문서는 원시 결과에서 자동 생성한 사실표다. 원인과 최종 권고는 [CPU8 MTP·capacity bundle 분석 리포트](../../../reports/results/06_CPU8_MTP_KV_ANALYSIS.md)에 정리한다.
 """
     (args.output / "REPORT.md").write_text(report, encoding="utf-8")
     print(f"Validated CPU8 optimization comparison across {total_requests} requests")

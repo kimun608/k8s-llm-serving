@@ -51,7 +51,7 @@ Kind 설치와 노드 구성은 `../k8s/README.md`를 따릅니다.
 
 Qwen3.5-0.8B는 0.8B 규모, 약 1.63GiB BF16 checkpoint이며 checkpoint 자체에 native MTP layer가 있습니다. 따라서 베이스라인과 MTP 최적화 실험에서 target model을 바꾸지 않고 speculative decoding 설정만 변경할 수 있습니다. 공식 checkpoint는 멀티모달 구조이지만 과제 요청은 텍스트뿐이므로 vision 입력 경로를 끕니다. Docker VM 약 7.65GiB 안에서 실행하기 위해 Pod limit은 6.5GiB, KV cache는 512MiB로 제한했습니다. 모델을 이미지에 포함해 Pod 시작 시 외부 다운로드가 발생하지 않도록 했습니다.
 
-현재 베이스라인에는 speculative config를 넣지 않습니다. MTP overlay는 Qwen 공식 vLLM recipe와 동일하게 `--speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}'`를 사용합니다. 실제 MTP 기동·부하 측정은 [최적화 분석 리포트](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 기록했습니다.
+현재 베이스라인에는 speculative config를 넣지 않습니다. MTP overlay는 Qwen 공식 vLLM recipe와 동일하게 `--speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}'`를 사용합니다. 실제 MTP 기동·부하 측정은 [최적화 분석 리포트](../reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 기록했습니다.
 
 ## 1. 환경 점검
 
@@ -154,7 +154,7 @@ kubectl -n llm-serving get deployment vllm-cpu \
 kubectl -n llm-serving exec deployment/vllm-cpu -- cat /sys/fs/cgroup/cpu.max
 ```
 
-예상 CPU limit은 `8`, cgroup 값은 `800000 100000`입니다. 동일 700건 A/B 절차와 결과는 [CPU limit 실험 README](../optimization/cpu8/README.md)와 [분석 리포트](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
+예상 CPU limit은 `8`, cgroup 값은 `800000 100000`입니다. 동일 700건 A/B 절차와 결과는 [CPU limit 실험 README](../optimization/cpu8/README.md)와 [분석 리포트](../reports/results/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
 
 ### CPU limit 8에서 MTP·capacity bundle 배포
 
@@ -168,7 +168,7 @@ make deploy-mtp-kv-tuned-cpu8
 make smoke
 ```
 
-두 overlay 모두 CPU limit은 8이고 GPU resource를 요청하지 않습니다. 시작 로그에서 `device_config=cpu`, `speculative_config=...num_spec_tokens=2`를 확인할 수 있습니다. KV 기동 capacity는 MTP와 capacity bundle에서 각각 9,137, 13,705 tokens로 측정됐습니다. bundle은 두 설정 인자를 함께 변경하므로 결과를 KV 또는 `max-num-seqs` 하나의 단독 인과효과로 해석하지 않습니다. 배포·측정 절차는 [CPU8 실험 README](../optimization/cpu8-mtp-kv/README.md), 결과는 [CPU8 분석 리포트](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
+두 overlay 모두 CPU limit은 8이고 GPU resource를 요청하지 않습니다. 시작 로그에서 `device_config=cpu`, `speculative_config=...num_spec_tokens=2`를 확인할 수 있습니다. KV 기동 capacity는 MTP와 capacity bundle에서 각각 9,137, 13,705 tokens로 측정됐습니다. bundle은 두 설정 인자를 함께 변경하므로 결과를 KV 또는 `max-num-seqs` 하나의 단독 인과효과로 해석하지 않습니다. 배포·측정 절차는 [CPU8 실험 README](../optimization/cpu8-mtp-kv/README.md), 결과는 [CPU8 분석 리포트](../reports/results/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
 
 ### CPU limit 8에서 KV·max-num-seqs 단일 변수 배포
 
@@ -230,6 +230,6 @@ kubectl -n llm-serving port-forward service/vllm-cpu 8000:8000
 | Model API | Qwen3.5-0.8B, max length 2,048 확인 |
 | Chat completion | 16 output tokens 생성 성공 |
 
-실행 metadata는 `../results/`, 부하 원본은 `../benchmark/results/`에 보관합니다. 이 Service에 동일한 프롬프트 100건을 동시성 `1, 2, 5, 10, 20, 50, 100`으로 보내는 실험을 설정당 700건씩 완료했습니다.
+빌드·클러스터·배포 metadata는 `../reports/results/deployment/`, 부하 원본은 `../benchmark/results/`에 보관합니다. 이 Service에 동일한 프롬프트 100건을 동시성 `1, 2, 5, 10, 20, 50, 100`으로 보내는 실험을 설정당 700건씩 완료했습니다.
 
 최적화 overlay의 선정 근거와 기존 배포 순서는 [`../optimization/README.md`](../optimization/README.md), 전체 factor는 [실험 매트릭스](../optimization/EXPERIMENT_MATRIX.md)를 따릅니다. `baseline`을 보존하고 MTP, legacy capacity bundle과 KV/maxseq 단일 변수 overlay를 분리했습니다. 실제 overlay·Make target의 `mtp-kv-tuned` 이름은 legacy ID로 유지합니다. CPU8 기존 비교는 [`../optimization/cpu8-mtp-kv/README.md`](../optimization/cpu8-mtp-kv/README.md), 완료된 분리 실험은 [`../optimization/cpu8-factorial/README.md`](../optimization/cpu8-factorial/README.md), 8개 설정 5,600건 검증은 [comparison-all](../benchmark/results/comparison-all/REPORT.md)에 있습니다.

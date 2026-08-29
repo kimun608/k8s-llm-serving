@@ -17,7 +17,7 @@
 | [TruthfulQA](https://github.com/sylinrl/TruthfulQA) | 25 | 짧은 사실 질의 | `d71c110...` |
 | [LongBench](https://github.com/THUDM/LongBench) Qasper | 25 | 긴 문맥 QA | `5e628be...` |
 
-원본 URL·revision·파일 SHA-256은 [`source-manifest.json`](../benchmark/data/source-manifest.json), 실제 100개 요청은 [`prompts.jsonl`](../benchmark/data/prompts.jsonl)에 기록했다. workload 선택 결과 SHA-256은 `576df81caa418630...`, 실제 측정 입력 파일 SHA-256은 `ce76ecbeb5810392...`다. 서버가 계산한 입력 길이는 최소 105, 평균 297.9, 최대 1,049 tokens였다. HumanEval의 생성 코드는 실행하지 않았고 LongBench 문맥은 2,048-token 모델 한도 안으로 결정적으로 잘랐다.
+원본 URL·revision·파일 SHA-256은 [`source-manifest.json`](../../benchmark/data/source-manifest.json), 실제 100개 요청은 [`prompts.jsonl`](../../benchmark/data/prompts.jsonl)에 기록했다. workload 선택 결과 SHA-256은 `576df81caa418630...`, 실제 측정 입력 파일 SHA-256은 `ce76ecbeb5810392...`다. 서버가 계산한 입력 길이는 최소 105, 평균 297.9, 최대 1,049 tokens였다. HumanEval의 생성 코드는 실행하지 않았고 LongBench 문맥은 2,048-token 모델 한도 안으로 결정적으로 잘랐다.
 
 ## 통제 조건
 
@@ -62,7 +62,7 @@ make benchmark-baseline
 make benchmark-analyze
 ```
 
-구체적인 스크립트 옵션과 파일 구조는 [`benchmark/README.md`](../benchmark/README.md)에 기록했다.
+구체적인 스크립트 옵션과 파일 구조는 [`benchmark/README.md`](../../benchmark/README.md)에 기록했다.
 
 ## 실측 결과
 
@@ -76,23 +76,23 @@ make benchmark-analyze
 | 50 | 100% | 0.210 | 13.46 | 216.41 / 254.46 | 168.19 / 204.58 | 818.13 / 1,038.46 | 16 / 40 | 100% | 5.50 | 5.83GiB |
 | 100 | 100% | 0.212 | 13.54 | 292.90 / 464.06 | 228.07 / 425.21 | 765.29 / 1,214.28 | 16 / 91 | 100% | 5.54 | 5.85GiB |
 
-서버 prompt/generation token counter 증가량은 모든 단계에서 각각 `29,791/6,400`이고 클라이언트 usage 합계와 정확히 일치했다. 전체 preemption은 2회, prefix hit는 0회, OOM kill과 Pod restart는 0회였다. 전체 수치와 p99는 [`summary.csv`](../benchmark/results/baseline/summary.csv), 실행 환경과 해시는 [`run-manifest.json`](../benchmark/results/baseline/run-manifest.json)에서 확인할 수 있다.
+서버 prompt/generation token counter 증가량은 모든 단계에서 각각 `29,791/6,400`이고 클라이언트 usage 합계와 정확히 일치했다. 전체 preemption은 2회, prefix hit는 0회, OOM kill과 Pod restart는 0회였다. 전체 수치와 p99는 [`summary.csv`](../../benchmark/results/baseline/summary.csv), 실행 환경과 해시는 [`run-manifest.json`](../../benchmark/results/baseline/run-manifest.json)에서 확인할 수 있다.
 
-초기 C=2 표본에는 host 중단으로 UTC wall clock과 monotonic timer 사이 5,365.15초의 차이가 있어 원시 데이터를 [`excluded/`](../benchmark/results/baseline/excluded/)에 보존하고 같은 100건으로 재측정했다. 위 표는 중단 없이 완료돼 두 timer의 차이가 0.05초 미만인 재측정값이다.
+초기 C=2 표본에는 host 중단으로 UTC wall clock과 monotonic timer 사이 5,365.15초의 차이가 있어 원시 데이터를 [`excluded/`](../../benchmark/results/baseline/excluded/)에 보존하고 같은 100건으로 재측정했다. 위 표는 중단 없이 완료돼 두 timer의 차이가 0.05초 미만인 재측정값이다.
 
 ### 처리량과 지연시간
 
-![동시성별 output token throughput](../benchmark/results/baseline/charts/output-token-throughput.svg)
+![동시성별 output token throughput](../../benchmark/results/baseline/charts/output-token-throughput.svg)
 
-![동시성별 E2E latency](../benchmark/results/baseline/charts/e2e-latency.svg)
+![동시성별 E2E latency](../../benchmark/results/baseline/charts/e2e-latency.svg)
 
 C=1에서 C=20으로 늘리면 output throughput은 `5.16 → 13.50 token/s`, 즉 2.62배로 증가했다. nominal 최고치는 C=100의 13.54 token/s지만 C=20보다 0.33% 높을 뿐이다. 반면 C=20에서 C=100으로 갈 때 E2E p95는 `131.17 → 464.06초`, 3.54배가 됐다. 따라서 이 장비의 실용적 처리량 포화점은 C=20이며 더 높은 동시성은 처리량보다 queue latency만 키웠다.
 
 ### 원인: CPU·KV·scheduler queue
 
-![vLLM running과 waiting 요청](../benchmark/results/baseline/charts/server-pressure.svg)
+![vLLM running과 waiting 요청](../../benchmark/results/baseline/charts/server-pressure.svg)
 
-![KV cache 사용률](../benchmark/results/baseline/charts/kv-cache.svg)
+![KV cache 사용률](../../benchmark/results/baseline/charts/kv-cache.svg)
 
 첫 waiting은 C=10에서 관찰됐다. C=20에서는 KV가 100%가 되고 peak running이 설정값 20보다 낮은 16에 머문 반면 waiting은 11까지 늘었다. C=50과 C=100에서도 running은 16으로 고정되고 waiting만 40과 91로 늘었다. 평균 CPU도 모든 단계에서 6-core limit 부근인 5.46~5.99 cores였다. 즉 고정 CPU 계산 용량과 512MiB KV가 active decode 수를 제한하고, 초과 부하는 scheduler queue로 이동했다.
 
@@ -110,4 +110,4 @@ Peak memory는 최대 6.05GiB로 6.5GiB limit 안에서 안정됐고 OOM/restart
 
 MTP는 중·저 QPS의 memory-bound decode에 유리할 가능성이 있지만 CPU verification overhead와 높은 동시성에서는 효과가 없거나 악화될 수 있다. 따라서 성공 기준을 단순 E2E 하나가 아니라 output token/s, TPOT, TTFT, acceptance rate, CPU 사용량의 조합으로 판단한다.
 
-분석 스크립트가 자동 생성한 전체 리포트와 11개 그래프는 [`benchmark/results/baseline/REPORT.md`](../benchmark/results/baseline/REPORT.md)에 있다.
+분석 스크립트가 자동 생성한 전체 리포트와 11개 그래프는 [`benchmark/results/baseline/REPORT.md`](../../benchmark/results/baseline/REPORT.md)에 있다.

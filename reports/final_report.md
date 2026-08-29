@@ -3,7 +3,7 @@
 > CPU quota, MTP, KV cache 및 scheduler capacity의 통제 실험<br>
 > 작성 기준: 2026-08-29 · 최종 제출용 보고서
 
-이 문서는 과제 제출용 결론을 한 파일에서 읽을 수 있도록 구성한 최종본이다. [07 최종 종합 분석](07_FINAL_COMPREHENSIVE_ANALYSIS.md)은 수치와 감사 근거를 더 자세히 보존한 evidence compendium이고, [01~06 보고서](#9-재현성-과제-충족표와-산출물)는 단계별 작업 기록이다. 특히 [04 보고서](04_OPTIMIZATION_FINAL_ANALYSIS.md)의 CPU6 결합 설정 비교는 역사적 결과이며, 본문의 최종 인과 판단에는 이후 수행한 CPU8 단일 변수 실험을 사용한다.
+이 문서는 과제 제출용 결론을 한 파일에서 읽을 수 있도록 구성한 최종본이다. [07 최종 종합 분석](results/07_FINAL_COMPREHENSIVE_ANALYSIS.md)은 수치와 감사 근거를 더 자세히 보존한 evidence compendium이고, [01~06 보고서](#9-재현성-과제-충족표와-산출물)는 단계별 작업 기록이다. 특히 [04 보고서](results/04_OPTIMIZATION_FINAL_ANALYSIS.md)의 CPU6 결합 설정 비교는 역사적 결과이며, 본문의 최종 인과 판단에는 이후 수행한 CPU8 단일 변수 실험을 사용한다.
 
 ## 초록
 
@@ -100,7 +100,7 @@ flowchart LR
     B -.->|"kubectl exec<br/>cgroup 1 s sampling"| P
 ```
 
-주요 산출물은 [Dockerfile](../model_serving/Dockerfile), [Kind cluster 설정](../k8s/kind/cluster.yaml), [Kubernetes base](../model_serving/k8s/base/), [실험 overlay](../model_serving/k8s/overlays/), [1단계 배포 리포트](01_CONTAINER_CLUSTER_DEPLOYMENT.md)에 있다. 현재 복구 상태는 CPU8 MTP-off baseline이며 [final-state metadata](../results/final-state-metadata.txt)에 image, args, CPU-only와 smoke 결과를 기록했다.
+주요 산출물은 [Dockerfile](../model_serving/Dockerfile), [Kind cluster 설정](../k8s/kind/cluster.yaml), [Kubernetes base](../model_serving/k8s/base/), [실험 overlay](../model_serving/k8s/overlays/), [1단계 배포 리포트](results/01_CONTAINER_CLUSTER_DEPLOYMENT.md)에 있다. 현재 복구 상태는 CPU8 MTP-off baseline이며 [final-state metadata](results/deployment/final-state-metadata.txt)에 image, args, CPU-only와 smoke 결과를 기록했다.
 
 ### 2.4 명시한 실행 파라미터
 
@@ -367,7 +367,7 @@ NotImplementedError: FP8 KV cache on CPU requires x86 with AVX-512 or AMX.
 
 Apple M4는 Linux/aarch64이며 vLLM 0.26 CPU backend에 필요한 FP8 KV kernel이 없다. 또한 hybrid GDN layer의 runtime scale 계산이 비활성화돼 default scale 1.0을 사용한다는 경고가 있었다. API가 Ready가 되지 않은 설정에 700건을 보내면 FP8 성능이 아니라 connection failure를 측정하므로 정식 행렬에 포함하지 않았다. Baseline으로 복구해 Ready 1/1을 확인했다.
 
-이는 FP8 KV가 일반적으로 무효라는 뜻이 아니다. 지원 x86 CPU 또는 CUDA/ROCm GPU에서 capacity, latency와 model quality를 다시 검증해야 한다. 당시 console 내용을 [실패 리포트](03_FAILED_OPTIMIZATION_FP8_KV.md)에 옮겼지만 원시 `kubectl logs/describe/events` 파일을 보존하지 못한 provenance 한계도 함께 기록한다.
+이는 FP8 KV가 일반적으로 무효라는 뜻이 아니다. 지원 x86 CPU 또는 CUDA/ROCm GPU에서 capacity, latency와 model quality를 다시 검증해야 한다. 당시 console 내용을 [실패 리포트](results/03_FAILED_OPTIMIZATION_FP8_KV.md)에 옮겼지만 원시 `kubectl logs/describe/events` 파일을 보존하지 못한 provenance 한계도 함께 기록한다.
 
 #### Generic MTP 5 tokens: 기동하지만 후보 탈락
 
@@ -545,29 +545,17 @@ Scale-out만으로 prefix locality가 깨질 수 있으므로 llm-d Router의 lo
 
 ### 7.1 분석 한계
 
-1. 각 설정은 원칙적으로 한 번 측정했고 C 순서도 낮은 값에서 높은 값으로 고정돼 thermal·background load·order effect가 남는다.
-2. CPU8 C5의 두 유효 표본도 19.5% 달랐으므로 작은 차이는 개선으로 확정할 수 없다.
-3. workload의 71%가 256 input tokens 이하이고 최대 1,049라 context limit 근처의 장문 압박을 검증하지 않는다.
-4. English 공개 source를 각각 25건으로 맞췄으며 실제 production traffic mix가 아니다.
-5. output을 64 tokens로 강제했고 정답률·코드 실행·perplexity를 평가하지 않아 quality regression을 알 수 없다.
-6. Closed-loop local client와 port-forward가 실제 open-loop arrival나 remote network를 대표하지 않는다.
-7. Warmup 세 건에 Qasper 장문과 높은 동시성이 포함되지 않았다.
-8. 1초 sampling은 짧은 queue·resource peak를 놓칠 수 있고 host thermal, DRAM bandwidth와 CPU cache miss를 수집하지 않았다.
-9. MTP의 proposal·verification, target forward 시간을 profiler로 분리하지 않았다.
-10. FP8 failure의 raw Kubernetes log/event artifact를 보존하지 못해 당시 동시대 보고서에 의존한다.
-11. 단일 worker와 7.65GiB VM 때문에 HPA와 worker failure 선택 과제를 실행하지 않았다.
-12. 이 결과는 CPU·모델·runtime 버전에 한정되며 전역 최적값을 증명하지 않는다.
+1. **반복 측정이 부족하다.** 대부분의 설정을 한 번만 측정했고 실험 순서도 같았다. CPU8 C5 재측정값도 19.5% 차이가 났으므로 작은 차이는 확정적 개선으로 보지 않는다.
+2. **실제 서비스 트래픽과 다르다.** 영어 공개 데이터 100건, 최대 입력 1,049 tokens, 고정 출력 64 tokens를 사용했다. 따라서 초장문·한국어 요청과 답변 품질 변화는 확인하지 못했다.
+3. **로컬 환경만 검증했다.** 로컬 클라이언트와 `port-forward`를 사용했고 자원을 1초 간격으로 수집했다. 실제 네트워크와 순간적인 자원 상승은 반영하지 못했고, 단일 worker라 HPA와 장애 복구도 실험하지 못했다.
+4. **결과를 다른 환경에 그대로 적용할 수 없다.** 이 결론은 Apple M4·Qwen3.5-0.8B·vLLM 0.26 CPU 조합에 한정된다. GPU나 다른 모델에서는 최적 설정을 다시 측정해야 한다.
 
-### 7.2 시간이 더 있었다면 수행할 순서
+### 7.2 다음으로 할 실험
 
-1. **반복과 순서 통제:** 핵심 2×2를 최소 3회 randomized crossover로 실행하고 median·IQR 또는 bootstrap confidence interval을 제시한다.
-2. **CPU thread/affinity:** CPU8에서 auto 9 threads, explicit 8, explicit 7을 비교하고 cgroup throttled period/time을 함께 측정한다.
-3. **MTP1 vs MTP2:** 현재 `method=mtp` 문법으로 depth 1·2를 비교해 낮은 동시성과 높은 동시성의 crossover를 찾는다.
-4. **장문 scheduler 2D sweep:** 실제 long-context workload에서 max-model-len과 chunked-prefill 상태를 고정하고 max-seqs와 max-batched-tokens를 공동 비교한다.
-5. **지원 weight quantization:** ARM CPU kernel이 지원하는 W8A8/W4 계열을 quality gate와 독립 비교한다.
-6. **APC·routing workload:** 공통 system prompt, shared document, multi-turn traffic에서 cold/warm APC와 round-robin/llm-d를 비교한다.
-7. **GPU topology:** 같은 GPU 2개로 TP2×1과 TP1×2를 비교하고, GPU 4개에서는 TP2×2의 HA·throughput·failure recovery를 검증한다.
-8. **P/D disaggregation:** 긴 prefill이 ITL SLO를 실제로 침해할 때 aggregated serving과 동일 hardware budget으로 비교한다.
+1. **결과 신뢰도 높이기:** 핵심 설정을 무작위 순서로 3회 이상 반복하고 중앙값과 변동 폭을 확인한다.
+2. **CPU 최적화 추가 비교:** CPU 스레드 수, MTP1·MTP2, ARM에서 지원하는 가중치 압축을 한 번에 하나씩 바꿔 속도와 품질을 확인한다.
+3. **장문 요청 최적화:** 실제 장문 데이터로 `max-num-seqs`, `max-num-batched-tokens`, chunked prefill을 함께 조절하고 대기 시간·생성 속도·KV 사용량을 비교한다.
+4. **GPU 운영 구성 검증:** 같은 GPU 2개로 TP2 서버 1개와 독립 replica 2개를 비교한다. 공통 prefix가 많은 요청에서 APC와 llm-d의 KV-aware routing 효과도 확인한다.
 
 ## 8. 결론
 
@@ -581,14 +569,14 @@ CPU-only local Kubernetes에서 vLLM model serving, 100개 고정 workload, 7단
 
 | 과제 요구 | 구현·증거 |
 |---|---|
-| 런타임 model serving image 정의·빌드 | [Dockerfile](../model_serving/Dockerfile), [model serving README](../model_serving/README.md), [build metadata](../results/build-metadata.txt) |
-| Local Kubernetes cluster 생성·image load | [k8s README](../k8s/README.md), [Kind config](../k8s/kind/cluster.yaml), [cluster metadata](../results/cluster-metadata.txt) |
-| K8s resource 작성·배포 | [base/overlays](../model_serving/k8s/), [1단계 리포트](01_CONTAINER_CLUSTER_DEPLOYMENT.md) |
+| 런타임 model serving image 정의·빌드 | [Dockerfile](../model_serving/Dockerfile), [model serving README](../model_serving/README.md), [build metadata](results/deployment/build-metadata.txt) |
+| Local Kubernetes cluster 생성·image load | [k8s README](../k8s/README.md), [Kind config](../k8s/kind/cluster.yaml), [cluster metadata](results/deployment/cluster-metadata.txt) |
+| K8s resource 작성·배포 | [base/overlays](../model_serving/k8s/), [1단계 리포트](results/01_CONTAINER_CLUSTER_DEPLOYMENT.md) |
 | 100건 × 동시성 1/2/5/10/20/50/100 | [benchmark README](../benchmark/README.md), [runner](../benchmark/scripts/run_benchmark.py), [원시 결과](../benchmark/results/) |
 | 단계별 성능 지표 기록 | [baseline 결과](../benchmark/results/baseline/REPORT.md), [전체 비교](../benchmark/results/comparison-all/REPORT.md) |
 | 두 가지 이상 최적화·재측정 | CPU quota, MTP, KV-only, maxseq-only와 legacy bundle 총 8개 설정 |
-| 실패 최적화 분석 | [FP8 KV 실패 기록](03_FAILED_OPTIMIZATION_FP8_KV.md), MTP5 pilot 분석 |
-| 최종 before/after 분석 | 본 보고서와 [상세 evidence compendium](07_FINAL_COMPREHENSIVE_ANALYSIS.md) |
+| 실패 최적화 분석 | [FP8 KV 실패 기록](results/03_FAILED_OPTIMIZATION_FP8_KV.md), MTP5 pilot 분석 |
+| 최종 before/after 분석 | 본 보고서와 [상세 evidence compendium](results/07_FINAL_COMPREHENSIVE_ANALYSIS.md) |
 | 선택: worker failure / HPA | 장비 memory와 단일 worker 제약으로 미수행; production 설계만 제시 |
 
 ### 9.2 주요 재현 명령
@@ -632,7 +620,7 @@ make validate-docs
 - CPU8 KV-only 원본: [`benchmark/results/mtp-kv768-cpu8`](../benchmark/results/mtp-kv768-cpu8/)
 - CPU8 maxseq-only 원본: [`benchmark/results/mtp-seq24-cpu8`](../benchmark/results/mtp-seq24-cpu8/)
 - 실험 인과 행렬: [`optimization/EXPERIMENT_MATRIX.md`](../optimization/EXPERIMENT_MATRIX.md)
-- 단계별 리포트: [01 배포](01_CONTAINER_CLUSTER_DEPLOYMENT.md), [02 baseline](02_BASELINE_BENCHMARK.md), [03 FP8 실패](03_FAILED_OPTIMIZATION_FP8_KV.md), [04 CPU6 역사 분석](04_OPTIMIZATION_FINAL_ANALYSIS.md), [05 CPU6→8](05_BASELINE_CPU8_ANALYSIS.md), [06 CPU8 MTP/bundle](06_CPU8_MTP_KV_ANALYSIS.md), [07 상세 종합](07_FINAL_COMPREHENSIVE_ANALYSIS.md)
+- 단계별 리포트: [01 배포](results/01_CONTAINER_CLUSTER_DEPLOYMENT.md), [02 baseline](results/02_BASELINE_BENCHMARK.md), [03 FP8 실패](results/03_FAILED_OPTIMIZATION_FP8_KV.md), [04 CPU6 역사 분석](results/04_OPTIMIZATION_FINAL_ANALYSIS.md), [05 CPU6→8](results/05_BASELINE_CPU8_ANALYSIS.md), [06 CPU8 MTP/bundle](results/06_CPU8_MTP_KV_ANALYSIS.md), [07 상세 종합](results/07_FINAL_COMPREHENSIVE_ANALYSIS.md)
 
 ## 참고문헌과 공식 근거
 

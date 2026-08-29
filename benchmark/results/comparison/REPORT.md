@@ -35,4 +35,4 @@
 - [Pod CPU](charts/pod-cpu.svg)
 - [MTP acceptance](charts/mtp-acceptance.svg)
 
-이 문서는 원시 summary에서 자동 생성한 사실표다. 개선·악화 원인, FP8 실패, GPU 프로덕션 전환 판단은 [최종 분석 리포트](../../../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 별도로 서술한다.
+이 문서는 원시 summary에서 자동 생성한 사실표다. 개선·악화 원인, FP8 실패, GPU 프로덕션 전환 판단은 [최종 분석 리포트](../../../reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 별도로 서술한다.

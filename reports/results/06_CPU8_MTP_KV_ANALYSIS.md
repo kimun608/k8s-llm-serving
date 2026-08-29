@@ -1,6 +1,6 @@
 # CPU limit 8 고정: MTP와 capacity bundle 분석
 
-> 이 문서는 기존 세 설정의 역사적 분석이다. 이후 KV-only와 `max-num-seqs`-only를 각각 700건 추가해 혼합 변수를 분리했으며, 최종 결론은 [논문형 최종 보고서](final-report.md)를 따른다.
+> 이 문서는 기존 세 설정의 역사적 분석이다. 이후 KV-only와 `max-num-seqs`-only를 각각 700건 추가해 혼합 변수를 분리했으며, 최종 결론은 [논문형 최종 보고서](../final_report.md)를 따른다.
 
 ## 결론
 
@@ -16,7 +16,7 @@ CPU limit을 `8`로 고정한 상태에서 `baseline-cpu8`, `mtp-cpu8`, `mtp-kv-
 
 7개 phase 시간을 단순 합산하면 baseline-cpu8은 `3,840.71초`, MTP는 `3,576.55초`, 결합 설정은 `3,441.59초`다. 동일한 총 44,800 output tokens 기준 합산 처리량은 각각 `11.66`, `12.53`, `13.02 token/s`다. 결합 설정의 합산값은 C=1·2의 큰 실행 간 차이에 강하게 영향을 받으므로 고동시성 capacity가 좋아졌다는 뜻이 아니다. 운영 설정은 목표 동시성별 결과로 선택해야 한다.
 
-자동 검증표와 그래프는 [comparison-cpu8-optimizations/REPORT.md](../benchmark/results/comparison-cpu8-optimizations/REPORT.md), 재분석용 원표는 [comparison.csv](../benchmark/results/comparison-cpu8-optimizations/comparison.csv)에 있다.
+자동 검증표와 그래프는 [comparison-cpu8-optimizations/REPORT.md](../../benchmark/results/comparison-cpu8-optimizations/REPORT.md), 재분석용 원표는 [comparison.csv](../../benchmark/results/comparison-cpu8-optimizations/comparison.csv)에 있다.
 
 ## 장비·모델·런타임 선택 근거
 
@@ -59,7 +59,7 @@ GPU를 사용하지 않았다는 사실은 Kubernetes에 GPU resource가 없다�
 
 `baseline-cpu8 → mtp-cpu8`은 MTP만 추가했으므로 MTP 단독 A/B다. 반면 `mtp-cpu8 → mtp-kv-tuned-cpu8`은 KV byte budget과 `max-num-seqs` 두 값을 함께 바꿨으므로 **KV 단독 A/B가 아니다**. 이 세 설정만으로는 capacity bundle을 분해할 수 없었다. 후속 2×2 결과에서는 KV-only가 running 5→8을 만들었지만 C=10·20 throughput을 각각 10.2%·10.4% 낮췄고, maxseq-only는 running/waiting을 바꾸지 않았다. `mtp-kv-tuned-cpu8`이라는 이름은 결과 경로 호환성을 위한 legacy artifact ID다.
 
-실측 peak running은 MTP에서 최대 5, bundle에서 최대 8로 두 설정 모두 기존 `max-num-seqs=20`보다 낮았다. 따라서 이 역사적 세 설정만 보면 20이라는 상한이 직접 포화된 흔적은 없고 KV capacity 증가가 running 폭 변화의 유력 원인이었다. 당시 남아 있던 혼합 변수는 후속 `KV768MiB / max-num-seqs20`과 `KV512MiB / max-num-seqs24` 셀을 추가한 [2×2 분리 실험](../optimization/cpu8-factorial/README.md)에서 해소했다. 그 결과 maxseq-only는 scheduler 상태를 바꾸지 않았고, KV-only가 running을 5에서 8로 늘린 사실을 확인했다.
+실측 peak running은 MTP에서 최대 5, bundle에서 최대 8로 두 설정 모두 기존 `max-num-seqs=20`보다 낮았다. 따라서 이 역사적 세 설정만 보면 20이라는 상한이 직접 포화된 흔적은 없고 KV capacity 증가가 running 폭 변화의 유력 원인이었다. 당시 남아 있던 혼합 변수는 후속 `KV768MiB / max-num-seqs20`과 `KV512MiB / max-num-seqs24` 셀을 추가한 [2×2 분리 실험](../../optimization/cpu8-factorial/README.md)에서 해소했다. 그 결과 maxseq-only는 scheduler 상태를 바꾸지 않았고, KV-only가 running을 5에서 8로 늘린 사실을 확인했다.
 
 각 동시성 단계는 같은 100건 중 최대 C건만 동시에 in-flight가 되는 closed-loop 방식이다. 요청당 output은 정확히 64 tokens이며 `temperature=0`, `ignore_eos=true`, Automatic Prefix Caching off다. 단계별 warmup 3건은 통계에서 제외했다.
 
@@ -73,7 +73,7 @@ GPU를 사용하지 않았다는 사실은 Kubernetes에 GPU resource가 없다�
 - MTP·결합 설정의 prefix cache query/hit 0, preemption 0
 - 비교기가 rendered container spec을 검사해 의도한 단계 변경 이외의 차이가 없음을 확인
 
-CPU8 baseline C=5는 사용자 요청으로 유효한 두 번째 표본을 공식값으로 사용했다. 첫 유효 표본과 재측정 output throughput 차이는 19.5%였다. 따라서 이번 MTP·capacity bundle 비교도 단일 반복의 host background load와 thermal 변동을 포함하며, 특히 낮은 동시성의 작은 차이를 확정값으로 해석하지 않는다. 최초 표본은 [baseline-cpu8/excluded](../benchmark/results/baseline-cpu8/excluded/)에 보존돼 있다.
+CPU8 baseline C=5는 사용자 요청으로 유효한 두 번째 표본을 공식값으로 사용했다. 첫 유효 표본과 재측정 output throughput 차이는 19.5%였다. 따라서 이번 MTP·capacity bundle 비교도 단일 반복의 host background load와 thermal 변동을 포함하며, 특히 낮은 동시성의 작은 차이를 확정값으로 해석하지 않는다. 최초 표본은 [baseline-cpu8/excluded](../../benchmark/results/baseline-cpu8/excluded/)에 보존돼 있다.
 
 ## 지표를 선택한 이유
 
@@ -209,7 +209,7 @@ vLLM 공통 CLI가 `fp8`을 파싱하는 것과 Apple ARM64 CPU용 실행 kernel
 5. Automatic Prefix Caching은 이번 cold/distinct-prefix workload에서는 계속 끄고, 공통 system prompt나 multi-turn 대화가 있는 별도 cold/warm 실험에서만 평가한다.
 6. weight INT8/INT4는 Apple Docker VM에서 실제 kernel 지원과 정확도 회귀를 먼저 검증한 뒤 독립 실험한다. GPU 환경에서는 chunked prefill, prefix-aware routing, tensor parallel, disaggregated prefill/decode를 실제 prompt 길이와 SLO에 맞춰 검증한다.
 
-상세 실험 행렬과 인과성 표시는 [최적화 실험 행렬](../optimization/EXPERIMENT_MATRIX.md)에 정리한다.
+상세 실험 행렬과 인과성 표시는 [최적화 실험 행렬](../../optimization/EXPERIMENT_MATRIX.md)에 정리한다.
 
 공식 근거: [vLLM CPU 설치·튜닝 가이드](https://docs.vllm.ai/en/stable/getting_started/installation/cpu/index.html), [vLLM Qwen3.5 recipe](https://github.com/vllm-project/recipes/blob/main/Qwen/Qwen3.5.md)
 
@@ -230,9 +230,9 @@ make benchmark-mtp-kv-tuned-cpu8
 make benchmark-compare-cpu8-optimizations
 ```
 
-- Baseline CPU8: [benchmark/results/baseline-cpu8](../benchmark/results/baseline-cpu8/)
-- MTP CPU8: [benchmark/results/mtp-cpu8](../benchmark/results/mtp-cpu8/)
-- Capacity bundle CPU8 (legacy ID): [benchmark/results/mtp-kv-tuned-cpu8](../benchmark/results/mtp-kv-tuned-cpu8/)
-- 자동 비교 CSV·그래프: [benchmark/results/comparison-cpu8-optimizations](../benchmark/results/comparison-cpu8-optimizations/)
-- 실험 절차: [optimization/cpu8-mtp-kv/README.md](../optimization/cpu8-mtp-kv/README.md)
-- FP8 실패 상세: [reports/03_FAILED_OPTIMIZATION_FP8_KV.md](03_FAILED_OPTIMIZATION_FP8_KV.md)
+- Baseline CPU8: [benchmark/results/baseline-cpu8](../../benchmark/results/baseline-cpu8/)
+- MTP CPU8: [benchmark/results/mtp-cpu8](../../benchmark/results/mtp-cpu8/)
+- Capacity bundle CPU8 (legacy ID): [benchmark/results/mtp-kv-tuned-cpu8](../../benchmark/results/mtp-kv-tuned-cpu8/)
+- 자동 비교 CSV·그래프: [benchmark/results/comparison-cpu8-optimizations](../../benchmark/results/comparison-cpu8-optimizations/)
+- 실험 절차: [optimization/cpu8-mtp-kv/README.md](../../optimization/cpu8-mtp-kv/README.md)
+- FP8 실패 상세: [03_FAILED_OPTIMIZATION_FP8_KV.md](03_FAILED_OPTIMIZATION_FP8_KV.md)

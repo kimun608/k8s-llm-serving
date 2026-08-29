@@ -108,7 +108,7 @@ benchmark/results/
     └── charts/
 ```
 
-FP8 KV 실패 상세는 `reports/03_FAILED_OPTIMIZATION_FP8_KV.md`, 최종 과제 분석은 `reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`에 정리합니다. 최종 문서에는 개선·악화 원인, 효과가 없었던 후보, 로컬 K8s에서 GPU 프로덕션으로 가져갈 수 있는 부분과 재설계할 부분, 다음 최적화 계획을 포함합니다.
+FP8 KV 실패 상세는 [`03_FAILED_OPTIMIZATION_FP8_KV.md`](../reports/results/03_FAILED_OPTIMIZATION_FP8_KV.md), 전체 before/after와 최종 판단은 [`final_report.md`](../reports/final_report.md)에 정리합니다.
 
 ## 근거 문서
 
@@ -192,8 +192,8 @@ capacity bundle 실행은 MTP 단독보다 output throughput이 17.3% 높고 E2E
 
 MTP2의 약 75~77% acceptance는 낮은 동시성의 decode를 크게 개선했다. 그러나 512MiB KV에서 active running이 5로 제한돼 C≥20 총 처리량은 baseline보다 낮았다. 768MiB KV와 `max-num-seqs=24`를 함께 적용한 bundle에서는 running 8과 waiting 3개 감소가 관측됐지만, 6-core CPU에서 batch 경쟁이 커지며 MTP 단독 대비 C=10~100 TPOT p95가 46.8~76.7% 악화됐다. 이 결과는 capacity bundle 전체의 관측 차이이며 KV 또는 sequence 상한 하나의 단독 효과가 아니다. 따라서 저동시성에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 이 장비의 더 나은 선택이며 768MiB/24-seq 결합 설정은 범용 기본값으로 채택하지 않는다.
 
-자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 상세 원인·실패 후보·GPU production 전환 분석은 [`reports/04_OPTIMIZATION_FINAL_ANALYSIS.md`](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 있다.
+자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 전체 해석·최종 권고·GPU production 전환 분석은 [`final_report.md`](../reports/final_report.md)에 있다.
 
-이후 baseline에서 CPU limit만 `6 → 8`로 바꾼 독립 실험은 [`optimization/cpu8/README.md`](cpu8/README.md)와 [`reports/05_BASELINE_CPU8_ANALYSIS.md`](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 분리했다.
+이후 baseline에서 CPU limit만 `6 → 8`로 바꾼 독립 실험은 [`optimization/cpu8/README.md`](cpu8/README.md)와 [`reports/results/05_BASELINE_CPU8_ANALYSIS.md`](../reports/results/05_BASELINE_CPU8_ANALYSIS.md)에 분리했다.
 
-CPU limit 8을 고정한 후속 baseline/MTP/capacity bundle 비교는 [`optimization/cpu8-mtp-kv/README.md`](cpu8-mtp-kv/README.md)와 [`reports/06_CPU8_MTP_KV_ANALYSIS.md`](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 분리했다.
+CPU limit 8을 고정한 후속 baseline/MTP/capacity bundle 비교는 [`optimization/cpu8-mtp-kv/README.md`](cpu8-mtp-kv/README.md)와 [`reports/results/06_CPU8_MTP_KV_ANALYSIS.md`](../reports/results/06_CPU8_MTP_KV_ANALYSIS.md)에 분리했다.

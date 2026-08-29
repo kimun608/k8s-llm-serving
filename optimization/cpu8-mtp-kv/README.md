@@ -117,4 +117,4 @@ benchmark/results/
 
 KV와 `max-num-seqs`의 효과를 분리할 다음 2×2와 CPU thread/affinity 우선순위는 [전체 실험 행렬](../EXPERIMENT_MATRIX.md)에 정리했다.
 
-전체 지표, 원인, FP8 실패 이력과 production 전환 분석은 [CPU8 MTP·capacity bundle 분석 리포트](../../reports/06_CPU8_MTP_KV_ANALYSIS.md), 자동 생성 원표와 그래프는 [comparison-cpu8-optimizations](../../benchmark/results/comparison-cpu8-optimizations/)를 본다.
+전체 지표, 원인, FP8 실패 이력과 production 전환 분석은 [CPU8 MTP·capacity bundle 분석 리포트](../../reports/results/06_CPU8_MTP_KV_ANALYSIS.md), 자동 생성 원표와 그래프는 [comparison-cpu8-optimizations](../../benchmark/results/comparison-cpu8-optimizations/)를 본다.

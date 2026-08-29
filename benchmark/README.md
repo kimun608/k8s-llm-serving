@@ -164,7 +164,7 @@ results/baseline/
 
 원시 요청 결과에는 모델 응답 본문 대신 식별자, token 수, timing, 상태만 저장합니다. 분석 스크립트는 원시 파일에서 표·SVG 그래프·Markdown 리포트를 다시 생성하므로 수작업으로 수치를 옮기지 않습니다.
 
-현재 완료된 실측 결과는 [results/baseline/REPORT.md](results/baseline/REPORT.md), 과제 제출 관점의 분석은 [../reports/02_BASELINE_BENCHMARK.md](../reports/02_BASELINE_BENCHMARK.md)에서 확인할 수 있습니다.
+현재 완료된 실측 결과는 [results/baseline/REPORT.md](results/baseline/REPORT.md), 과제 제출 관점의 분석은 [../reports/results/02_BASELINE_BENCHMARK.md](../reports/results/02_BASELINE_BENCHMARK.md)에서 확인할 수 있습니다.
 
 ## 최적화 재측정과 비교
 
@@ -187,7 +187,7 @@ make benchmark-mtp-kv-tuned RESULTS_ROOT="$rerun_root"
 make benchmark-compare RESULTS_ROOT="$rerun_root"
 ```
 
-`benchmark-compare`는 세 설정의 prompt SHA-256과 고정 config, phase별 100/100 성공, client/server token counter 일치를 먼저 검증합니다. 통과하면 [results/comparison/REPORT.md](results/comparison/REPORT.md), 비교 CSV와 10개 SVG 그래프를 생성합니다. 원인 분석과 적용 실패 후보는 [최종 최적화 리포트](../reports/04_OPTIMIZATION_FINAL_ANALYSIS.md)를 봅니다.
+`benchmark-compare`는 세 설정의 prompt SHA-256과 고정 config, phase별 100/100 성공, client/server token counter 일치를 먼저 검증합니다. 통과하면 [results/comparison/REPORT.md](results/comparison/REPORT.md), 비교 CSV와 10개 SVG 그래프를 생성합니다. 원인 분석과 적용 실패 후보는 [최종 최적화 리포트](../reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md)를 봅니다.
 
 ### CPU limit 하나만 바꾸는 A/B
 
@@ -204,7 +204,7 @@ make benchmark-baseline-cpu8
 make benchmark-compare-cpu8
 ```
 
-`benchmark-compare-cpu8`는 workload와 token counter뿐 아니라 rendered container 명세에서 CPU limit 외 필드가 동일한지, 정식 phase의 UTC wall clock과 monotonic timer가 1%/5초 이내로 일치하는지, metric scrape error가 없는지 검증합니다. 실측 표·그래프는 [results/comparison-cpu8/REPORT.md](results/comparison-cpu8/REPORT.md), 원인 분석은 [CPU 8 분석 리포트](../reports/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
+`benchmark-compare-cpu8`는 workload와 token counter뿐 아니라 rendered container 명세에서 CPU limit 외 필드가 동일한지, 정식 phase의 UTC wall clock과 monotonic timer가 1%/5초 이내로 일치하는지, metric scrape error가 없는지 검증합니다. 실측 표·그래프는 [results/comparison-cpu8/REPORT.md](results/comparison-cpu8/REPORT.md), 원인 분석은 [CPU 8 분석 리포트](../reports/results/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
 
 host sleep이나 실행 중단이 발견된 phase만 원시 자료를 보존한 뒤 다시 실행할 수 있습니다.
 
@@ -237,7 +237,7 @@ make benchmark-mtp-kv-tuned-cpu8
 make benchmark-compare-cpu8-optimizations
 ```
 
-`benchmark-compare-cpu8-optimizations`는 세 설정의 총 2,100건, workload/token counter/timer/metric scrape와 rendered container 명세를 검증합니다. 실측 표와 그래프는 [results/comparison-cpu8-optimizations/REPORT.md](results/comparison-cpu8-optimizations/REPORT.md), bundle 전체의 관측 결과와 원인·권고는 [CPU8 MTP·capacity bundle 분석 리포트](../reports/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
+`benchmark-compare-cpu8-optimizations`는 세 설정의 총 2,100건, workload/token counter/timer/metric scrape와 rendered container 명세를 검증합니다. 실측 표와 그래프는 [results/comparison-cpu8-optimizations/REPORT.md](results/comparison-cpu8-optimizations/REPORT.md), bundle 전체의 관측 결과와 원인·권고는 [CPU8 MTP·capacity bundle 분석 리포트](../reports/results/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
 
 ### CPU8 KV × max-num-seqs 분리 실험과 전체 비교
 

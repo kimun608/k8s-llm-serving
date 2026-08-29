@@ -1,6 +1,6 @@
 # Baseline 단일 변경 분석: CPU limit 6 → 8
 
-> 이 문서는 CPU quota 단일 변경 A/B다. MTP와 KV/max-seqs 분리 실험을 포함한 최종 결론은 [논문형 최종 보고서](final-report.md)를 따른다.
+> 이 문서는 CPU quota 단일 변경 A/B다. MTP와 KV/max-seqs 분리 실험을 포함한 최종 결론은 [논문형 최종 보고서](../final_report.md)를 따른다.
 
 ## 결론
 
@@ -8,7 +8,7 @@
 
 최초 CPU 8 C=5는 baseline보다 throughput이 2.3% 낮았지만 사용자 요청에 따른 두 번째 실행에서는 16.7% 높았다. 두 CPU 8 실행의 throughput 차이가 19.5%이므로 최신 결과가 좋아졌다는 사실과 별개로 C=5 개선 폭의 반복 안정성은 아직 입증되지 않았다. 이번 워크로드와 장비에서 측정된 가장 단순하고 효과적인 한 필드 변경이라는 결론이며, production sizing 전에는 3회 이상 반복 측정이 필요하다.
 
-자동 검증표와 그래프는 [comparison-cpu8/REPORT.md](../benchmark/results/comparison-cpu8/REPORT.md), 재분석용 CSV는 [comparison.csv](../benchmark/results/comparison-cpu8/comparison.csv)에 있다.
+자동 검증표와 그래프는 [comparison-cpu8/REPORT.md](../../benchmark/results/comparison-cpu8/REPORT.md), 재분석용 CSV는 [comparison.csv](../../benchmark/results/comparison-cpu8/comparison.csv)에 있다.
 
 ## 실험 질문과 유일한 변경
 
@@ -50,7 +50,7 @@ CPU-only 조건은 Kubernetes resource 설정에 GPU가 없다는 사실뿐 아�
 - 정식 14개 phase의 UTC wall clock과 monotonic timer 차이는 모두 0.05초 이하였다.
 - metric scrape error는 모든 정식 phase에서 0이었다.
 
-장시간 실행 중 host 중단이 있었던 초기 표본 두 개는 결과에서 제외했다. CPU 6 C=2 표본은 wall clock과 timer 차이가 5,365.15초, CPU 8 C=10 표본은 8,169.92초였다. 원본 request, metric, phase metadata와 제외 사유를 각각 [baseline/excluded](../benchmark/results/baseline/excluded/)와 [baseline-cpu8/excluded](../benchmark/results/baseline-cpu8/excluded/)에 보존하고 같은 Pod 설정·100 prompt로 재측정했다.
+장시간 실행 중 host 중단이 있었던 초기 표본 두 개는 결과에서 제외했다. CPU 6 C=2 표본은 wall clock과 timer 차이가 5,365.15초, CPU 8 C=10 표본은 8,169.92초였다. 원본 request, metric, phase metadata와 제외 사유를 각각 [baseline/excluded](../../benchmark/results/baseline/excluded/)와 [baseline-cpu8/excluded](../../benchmark/results/baseline-cpu8/excluded/)에 보존하고 같은 Pod 설정·100 prompt로 재측정했다.
 
 최초 CPU 8 C=5는 wall clock과 metric 측면에서 유효한 표본이므로 중단 표본으로 취급하지 않는다. 사용자 요청으로 확인 실행을 수행하면서 원본을 같은 `baseline-cpu8/excluded/` 아래에 보존했고, 자동 비교의 정식 C=5 값만 최신 실행으로 교체했다. 재측정 기능은 `--resume --rerun-concurrencies`로 재현할 수 있으며 어떤 이유로 교체하더라도 기존 표본을 덮어쓰기 전에 자동 보존한다.
 

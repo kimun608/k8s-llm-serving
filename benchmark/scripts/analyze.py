@@ -445,15 +445,15 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
     experiment = manifest.get("config", {}).get("experiment", "baseline")
     if experiment != "baseline":
         analysis_report = (
-            "reports/05_BASELINE_CPU8_ANALYSIS.md"
+            "reports/results/05_BASELINE_CPU8_ANALYSIS.md"
             if experiment == "baseline-cpu8"
             else (
-                "reports/07_FINAL_COMPREHENSIVE_ANALYSIS.md"
+                "reports/results/07_FINAL_COMPREHENSIVE_ANALYSIS.md"
                 if experiment in {"mtp-kv768-cpu8", "mtp-seq24-cpu8"}
                 else (
-                    "reports/06_CPU8_MTP_KV_ANALYSIS.md"
+                    "reports/results/06_CPU8_MTP_KV_ANALYSIS.md"
                     if experiment in {"mtp-cpu8", "mtp-kv-tuned-cpu8"}
-                    else "reports/04_OPTIMIZATION_FINAL_ANALYSIS.md"
+                    else "reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md"
                 )
             )
         )

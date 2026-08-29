@@ -34,4 +34,4 @@
 - [KV cache](charts/kv-cache.svg)
 - [Pod memory](charts/pod-memory.svg)
 
-이 문서는 원시 summary에서 자동 생성한 사실표다. 원인과 최종 권고는 [CPU8 분석 리포트](../../../reports/05_BASELINE_CPU8_ANALYSIS.md)에 정리한다.
+이 문서는 원시 summary에서 자동 생성한 사실표다. 원인과 최종 권고는 [CPU8 분석 리포트](../../../reports/results/05_BASELINE_CPU8_ANALYSIS.md)에 정리한다.

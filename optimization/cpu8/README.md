@@ -68,7 +68,7 @@ benchmark/results/
 └── comparison-cpu8/          # 자동 before/after 표와 그래프
 ```
 
-정식 측정 후 이 문서에 실측 결론을 추가하고 `reports/05_BASELINE_CPU8_ANALYSIS.md`에 원인과 권고를 정리한다.
+정식 측정 후 이 문서에 실측 결론을 추가하고 `reports/results/05_BASELINE_CPU8_ANALYSIS.md`에 원인과 권고를 정리한다.
 
 ## 실측 결과
 
@@ -90,4 +90,4 @@ benchmark/results/
 
 장시간 실행 중 host가 중단된 초기 CPU 6 C=2와 CPU 8 C=10 표본은 결과에서 제외하되 `benchmark/results/*/excluded/`에 원시 데이터와 이유를 보존했다. 확인을 위해 교체한 최초 CPU 8 C=5 표본도 같은 위치에 보존하되 무효 표본으로 취급하지 않는다. 재측정된 정식 phase는 wall clock과 monotonic timer 차이가 모두 0.05초 이하다.
 
-최종 판단은 **현재 장비에서 CPU 8 overlay를 권장하되, C=20 이후 KV 100%·waiting queue 병목은 별도 최적화 대상으로 남긴다**는 것이다. 전체 수치, 예외 표본과 원인 분석은 [CPU 8 분석 리포트](../../reports/05_BASELINE_CPU8_ANALYSIS.md)를 본다.
+최종 판단은 **현재 장비에서 CPU 8 overlay를 권장하되, C=20 이후 KV 100%·waiting queue 병목은 별도 최적화 대상으로 남긴다**는 것이다. 전체 수치, 예외 표본과 원인 분석은 [CPU 8 분석 리포트](../../reports/results/05_BASELINE_CPU8_ANALYSIS.md)를 본다.

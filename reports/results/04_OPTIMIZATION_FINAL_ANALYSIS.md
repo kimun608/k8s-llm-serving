@@ -1,6 +1,6 @@
 # 4. CPU vLLM 최적화 적용 및 최종 분석
 
-> 이 문서는 CPU6의 역사적 세 설정 분석이다. CPU8과 KV/max-seqs 분리 실험까지 포함한 과제 최종 결론은 [논문형 최종 보고서](final-report.md)를 따른다.
+> 이 문서는 CPU6의 역사적 세 설정 분석이다. CPU8과 KV/max-seqs 분리 실험까지 포함한 과제 최종 결론은 [논문형 최종 보고서](../final_report.md)를 따른다.
 
 ## 결론
 
@@ -85,7 +85,7 @@ baseline의 초기 C=2 표본에는 host 중단이 있어 원시 자료를 보�
 | 50 | 13.46 → 12.52 | -7.0% | +2.7% | +8.9% | -29.7% | 16/40 → 8/42 |
 | 100 | 13.54 → 12.29 | -9.2% | +9.9% | +12.7% | -36.8% | 16/91 → 8/92 |
 
-자동 생성된 전체 수치표와 그래프는 [comparison/REPORT.md](../benchmark/results/comparison/REPORT.md) 및 [comparison.csv](../benchmark/results/comparison/comparison.csv)에 있다.
+자동 생성된 전체 수치표와 그래프는 [comparison/REPORT.md](../../benchmark/results/comparison/REPORT.md) 및 [comparison.csv](../../benchmark/results/comparison/comparison.csv)에 있다.
 
 ## 왜 개선되거나 악화됐는가
 
@@ -190,11 +190,11 @@ make benchmark-mtp-kv-tuned RESULTS_ROOT="$rerun_root"
 make benchmark-compare RESULTS_ROOT="$rerun_root"
 ```
 
-- MTP raw/summary/report: [`benchmark/results/mtp`](../benchmark/results/mtp/)
-- 결합 raw/summary/report: [`benchmark/results/mtp-kv-tuned`](../benchmark/results/mtp-kv-tuned/)
-- 자동 비교 CSV/그래프: [`benchmark/results/comparison`](../benchmark/results/comparison/)
-- 최적화 설계·pilot 기록: [`optimization/README.md`](../optimization/README.md)
-- FP8 실패 상세: [`reports/03_FAILED_OPTIMIZATION_FP8_KV.md`](03_FAILED_OPTIMIZATION_FP8_KV.md)
+- MTP raw/summary/report: [`benchmark/results/mtp`](../../benchmark/results/mtp/)
+- 결합 raw/summary/report: [`benchmark/results/mtp-kv-tuned`](../../benchmark/results/mtp-kv-tuned/)
+- 자동 비교 CSV/그래프: [`benchmark/results/comparison`](../../benchmark/results/comparison/)
+- 최적화 설계·pilot 기록: [`optimization/README.md`](../../optimization/README.md)
+- FP8 실패 상세: [`03_FAILED_OPTIMIZATION_FP8_KV.md`](03_FAILED_OPTIMIZATION_FP8_KV.md)
 
 ## 참고 문서
 
