@@ -1,6 +1,6 @@
 # 4. CPU vLLM 최적화 적용 및 최종 분석
 
-> 이 문서는 CPU6의 역사적 세 설정 분석이다. CPU8과 KV/max-seqs 분리 실험까지 포함한 과제 최종 결론은 [최종 종합 분석](07_FINAL_COMPREHENSIVE_ANALYSIS.md)을 따른다.
+> 이 문서는 CPU6의 역사적 세 설정 분석이다. CPU8과 KV/max-seqs 분리 실험까지 포함한 과제 최종 결론은 [논문형 최종 보고서](final-report.md)를 따른다.
 
 ## 결론
 

@@ -1,6 +1,6 @@
 # Baseline 단일 변경 분석: CPU limit 6 → 8
 
-> 이 문서는 CPU quota 단일 변경 A/B다. MTP와 KV/max-seqs 분리 실험을 포함한 최종 결론은 [최종 종합 분석](07_FINAL_COMPREHENSIVE_ANALYSIS.md)을 따른다.
+> 이 문서는 CPU quota 단일 변경 A/B다. MTP와 KV/max-seqs 분리 실험을 포함한 최종 결론은 [논문형 최종 보고서](final-report.md)를 따른다.
 
 ## 결론
 

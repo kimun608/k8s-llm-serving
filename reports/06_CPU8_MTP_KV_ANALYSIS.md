@@ -1,6 +1,6 @@
 # CPU limit 8 고정: MTP와 capacity bundle 분석
 
-> 이 문서는 기존 세 설정의 역사적 분석이다. 이후 KV-only와 `max-num-seqs`-only를 각각 700건 추가해 혼합 변수를 분리했으며, 최종 결론은 [최종 종합 분석](07_FINAL_COMPREHENSIVE_ANALYSIS.md)을 따른다.
+> 이 문서는 기존 세 설정의 역사적 분석이다. 이후 KV-only와 `max-num-seqs`-only를 각각 700건 추가해 혼합 변수를 분리했으며, 최종 결론은 [논문형 최종 보고서](final-report.md)를 따른다.
 
 ## 결론
 
