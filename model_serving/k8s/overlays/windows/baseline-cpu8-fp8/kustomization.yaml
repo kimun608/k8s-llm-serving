@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../baseline-cpu8-fp8
+components:
+  - ../../../components/windows-amd64

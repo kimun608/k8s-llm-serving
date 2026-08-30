@@ -26,8 +26,7 @@ spec:
       terminationGracePeriodSeconds: 30
       nodeSelector:
         kubernetes.io/os: linux
-        kubernetes.io/arch: arm64
-        node-role.kubernetes.io/worker: ""
+        llm-serving.local/worker: "true"
       containers:
         - name: vllm
           image: local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0

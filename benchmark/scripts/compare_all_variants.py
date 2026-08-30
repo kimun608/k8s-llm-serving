@@ -234,9 +234,11 @@ def expected_args(spec: VariantSpec) -> list[str]:
     return args
 
 
-def expected_resources(spec: VariantSpec) -> dict[str, dict[str, str]]:
+def expected_resources(
+    spec: VariantSpec, memory_limit: str = "6656Mi"
+) -> dict[str, dict[str, str]]:
     return {
-        "limits": {"cpu": str(spec.cpu_limit), "memory": "6656Mi"},
+        "limits": {"cpu": str(spec.cpu_limit), "memory": memory_limit},
         "requests": {"cpu": "4", "memory": "4Gi"},
     }
 
@@ -332,10 +334,27 @@ def validate_container(spec: VariantSpec, manifest: dict[str, Any]) -> None:
             f"{spec.name}: container args do not match exact expected factor settings; "
             f"expected={expected_args(spec)!r}, found={container.get('args')!r}"
         )
-    if container.get("resources") != expected_resources(spec):
+    environment = manifest.get("environment")
+    docker_environment = environment.get("docker") if isinstance(environment, dict) else None
+    docker_architecture = (
+        docker_environment.get("architecture")
+        if isinstance(docker_environment, dict)
+        else None
+    )
+    if docker_architecture in {"amd64", "x86_64"}:
+        memory_limit = "8Gi"
+    elif docker_architecture in {"arm64", "aarch64"}:
+        memory_limit = "6656Mi"
+    else:
+        raise ComparisonError(
+            f"{spec.name}: unsupported or missing Docker architecture "
+            f"{docker_architecture!r}"
+        )
+    resources = expected_resources(spec, memory_limit)
+    if container.get("resources") != resources:
         raise ComparisonError(
             f"{spec.name}: resources do not match exact expected CPU/memory settings; "
-            f"expected={expected_resources(spec)!r}, found={container.get('resources')!r}"
+            f"expected={resources!r}, found={container.get('resources')!r}"
         )
     if normalize_env(container.get("env")) != EXPECTED_ENV:
         raise ComparisonError(
@@ -357,6 +376,12 @@ def validate_results(
     baseline_input_tokens = baseline_manifest.get("input_token_validation")
     baseline_server_version = baseline_manifest.get("server_version")
     baseline_model = model_signature(baseline_manifest.get("model_endpoint"))
+    baseline_environment = baseline_manifest.get("environment", {})
+    baseline_host = baseline_environment.get("host")
+    baseline_docker = baseline_environment.get("docker")
+    baseline_nodes = baseline_environment.get("kubernetes", {}).get("nodes")
+    baseline_runner_sha256 = baseline_manifest.get("runner_sha256")
+    baseline_git_commit = baseline_environment.get("git", {}).get("commit")
     baseline_pods = (
         baseline_manifest.get("environment", {}).get("kubernetes", {}).get("pods")
     )
@@ -417,6 +442,23 @@ def validate_results(
             raise ComparisonError(f"{spec.name}: vLLM server version differs")
         if model_signature(manifest.get("model_endpoint")) != baseline_model:
             raise ComparisonError(f"{spec.name}: served model identity or context differs")
+        environment = manifest.get("environment", {})
+        if environment.get("host") != baseline_host:
+            raise ComparisonError(f"{spec.name}: captured host environment differs")
+        if environment.get("docker") != baseline_docker:
+            raise ComparisonError(f"{spec.name}: captured Docker resources or runtime differs")
+        if environment.get("kubernetes", {}).get("nodes") != baseline_nodes:
+            raise ComparisonError(f"{spec.name}: captured Kubernetes nodes differ")
+        runner_sha256 = manifest.get("runner_sha256")
+        if baseline_runner_sha256 is not None:
+            if runner_sha256 != baseline_runner_sha256:
+                raise ComparisonError(f"{spec.name}: benchmark runner SHA-256 differs")
+            if environment.get("git", {}).get("commit") != baseline_git_commit:
+                raise ComparisonError(f"{spec.name}: Git commit differs")
+        elif runner_sha256 is not None:
+            raise ComparisonError(
+                f"{spec.name}: mixed legacy/current runner provenance is not comparable"
+            )
         validate_container(spec, manifest)
         pods = manifest.get("environment", {}).get("kubernetes", {}).get("pods")
         if not isinstance(pods, list) or len(pods) != 1:
@@ -472,11 +514,19 @@ def validate_results(
                 raise ComparisonError(
                     f"{spec.name} C={concurrency}: client/server generation token mismatch"
                 )
-            oom_kills = finite(row.get("oom_kill_events_delta"))
-            if not math.isfinite(oom_kills) or oom_kills != 0:
+            memory_max_delta = finite(row.get("memory_max_events_delta"))
+            if not math.isfinite(memory_max_delta) or memory_max_delta < 0:
                 raise ComparisonError(
-                    f"{spec.name} C={concurrency}: invalid OOM-kill delta {oom_kills!r}"
+                    f"{spec.name} C={concurrency}: invalid memory_max_events_delta "
+                    f"{memory_max_delta!r}"
                 )
+            for event_field in ("oom_events_delta", "oom_kill_events_delta"):
+                event_delta = finite(row.get(event_field))
+                if not math.isfinite(event_delta) or event_delta != 0:
+                    raise ComparisonError(
+                        f"{spec.name} C={concurrency}: invalid {event_field} "
+                        f"{event_delta!r}"
+                    )
 
             phase = phases[concurrency]
             if (
@@ -620,6 +670,13 @@ def build_comparison_rows(
                     "peak_kv_percent": fmt(current["peak_kv_cache_percent"]),
                     "avg_cpu_cores": fmt(current["avg_pod_cpu_cores"]),
                     "peak_memory_gib": fmt(current["peak_pod_memory_gib"]),
+                    "memory_max_events_delta": fmt(
+                        current["memory_max_events_delta"], 0
+                    ),
+                    "oom_events_delta": fmt(current["oom_events_delta"], 0),
+                    "oom_kill_events_delta": fmt(
+                        current["oom_kill_events_delta"], 0
+                    ),
                 }
             )
     return output
@@ -1346,6 +1403,26 @@ def write_report(
     output: Path,
     comparison_rows: list[dict[str, Any]],
 ) -> None:
+    memory_max_rows = [
+        row
+        for row in comparison_rows
+        if float(row["memory_max_events_delta"]) > 0
+    ]
+    if memory_max_rows:
+        memory_max_detail = ", ".join(
+            f"`{row['variant']}` C={row['concurrency']} +"
+            f"{int(float(row['memory_max_events_delta']))}"
+            for row in memory_max_rows
+        )
+        memory_validation = (
+            "- 모든 phase의 OOM/OOM-kill은 `0`이다. cgroup `memory.events:max` "
+            f"접촉은 {memory_max_detail}에서 관찰됐으며 메모리 압박 신호로 별도 보고한다."
+        )
+    else:
+        memory_validation = (
+            "- 모든 phase의 cgroup `memory.events:max`, OOM, OOM-kill delta는 `0`이다."
+        )
+
     factor_table = [
         "| Artifact ID | 표시명 | CPU | MTP2 | KV | max-num-seqs | 분류 |",
         "|---|---|---:|---|---:|---:|---|",
@@ -1389,7 +1466,8 @@ def write_report(
 
 - 필수 variant `8`개, variant별 `700`건, 총 `5,600`건을 검증했다.
 - 모든 run은 동일 prompt SHA-256, tokenized input, 모델, vLLM, workload config와 동시성 `1, 2, 5, 10, 20, 50, 100`을 사용한다.
-- 각 phase는 `100/100` 성공, client/server prompt·generation token 합계 일치, metric scrape error와 OOM kill 0, wall/monotonic timer 허용 오차 통과 조건을 만족한다.
+- 각 phase는 `100/100` 성공, client/server prompt·generation token 합계 일치, metric scrape error 0, wall/monotonic timer 허용 오차 통과 조건을 만족한다.
+{memory_validation}
 - captured image, env, container args와 CPU/memory resources를 아래 factor matrix의 기대값과 정확히 대조했다.
 
 `mtp-kv-tuned`와 `mtp-kv-tuned-cpu8`은 보존된 역사적 artifact ID다. 두 설정은 KV `512→768MiB`와 `max-num-seqs 20→24`를 동시에 변경한 **legacy capacity bundle**이며 KV-only 최적화로 해석하지 않는다.

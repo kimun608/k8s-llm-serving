@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
-# vLLM v0.26.0 official Linux/ARM64 CPU image, pinned by digest.
-FROM vllm/vllm-openai-cpu:v0.26.0-arm64@sha256:5966fcc14fe241ee7f2dc3d3fd5610ed12968eb9c0d096e1089802b79681efc4
+# vLLM v0.26.0 official multi-architecture Linux CPU image. The manifest-list
+# digest pins both linux/amd64 and linux/arm64 to the same upstream release.
+FROM vllm/vllm-openai-cpu:v0.26.0@sha256:da36fc7267676e061270b3e8718cd723ddc47f7002fa02ede735aa779b2b94fc
 
 ARG MODEL_ID=Qwen/Qwen3.5-0.8B
 ARG MODEL_REVISION=2fc06364715b967f1860aea9cf38778875588b17
 ARG MODEL_DIR=/models/qwen3.5-0.8b
 
 LABEL org.opencontainers.image.title="Local CPU vLLM Qwen3.5-0.8B server" \
-      org.opencontainers.image.description="Reproducible ARM64 CPU-only vLLM image with native MTP weights" \
+      org.opencontainers.image.description="Reproducible CPU-only vLLM image with native MTP weights" \
       org.opencontainers.image.version="vllm-0.26.0-qwen3.5-0.8b" \
       ai.vllm.version="0.26.0" \
       ai.model.id="${MODEL_ID}" \

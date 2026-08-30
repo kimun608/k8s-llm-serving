@@ -3,4 +3,8 @@ benchmark/data/cache/
 __pycache__/
 *.py[cod]
 *.log
+!benchmark/results-windows-sequential-*/startup-evidence/**/startup.log
+!benchmark/results-windows-sequential-*/validation-gates/**/startup.log
+!benchmark/results-windows-cpu8-factors-*/startup-evidence/**/startup.log
+!benchmark/results-windows-cpu8-factors-*/validation-gates/**/startup.log
 .DS_Store

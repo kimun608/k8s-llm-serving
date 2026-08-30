@@ -23,7 +23,12 @@ model_serving/
 │       ├── mtp-kv-tuned/kustomization.yaml       # legacy ID: capacity bundle
 │       ├── mtp-kv-tuned-cpu8/kustomization.yaml  # legacy ID: CPU8 capacity bundle
 │       ├── mtp-kv768-cpu8/kustomization.yaml     # CPU8 KV-only 2×2 cell
+│       ├── mtp-kv768-fp8-cpu8/kustomization.yaml # CPU8 MTP2 KV768 FP8
 │       ├── mtp-seq24-cpu8/kustomization.yaml     # CPU8 maxseq-only 2×2 cell
+│       ├── baseline-kv768-cpu8/kustomization.yaml # CPU8 MTP-off KV768
+│       ├── baseline-cpu8-fp8/kustomization.yaml   # CPU8 MTP-off FP8 KV
+│       ├── baseline-kv768-fp8-cpu8/kustomization.yaml # 선별 KV768+FP8
+│       ├── windows/                 # 각 overlay + Windows 8Gi component wrapper
 │       └── candidates/              # 지원 여부 사전 검증용
 └── scripts/
     ├── preflight.sh
@@ -38,8 +43,8 @@ Kind 설치와 노드 구성은 `../k8s/README.md`를 따릅니다.
 | 항목 | 값 |
 |---|---|
 | Runtime | vLLM `0.26.0+cpu` |
-| Base image | `vllm/vllm-openai-cpu:v0.26.0-arm64` |
-| Base digest | `sha256:5966fcc14fe241ee7f2dc3d3fd5610ed12968eb9c0d096e1089802b79681efc4` |
+| Base image | `vllm/vllm-openai-cpu:v0.26.0` (linux/amd64 + linux/arm64) |
+| Base manifest digest | `sha256:da36fc7267676e061270b3e8718cd723ddc47f7002fa02ede735aa779b2b94fc` |
 | Model | `Qwen/Qwen3.5-0.8B` |
 | Model revision | `2fc06364715b967f1860aea9cf38778875588b17` |
 | Local image | `local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0` |
@@ -49,7 +54,7 @@ Kind 설치와 노드 구성은 `../k8s/README.md`를 따릅니다.
 | Multimodal path | `--language-model-only` |
 | Baseline MTP | off (`speculative_config=None`) |
 
-Qwen3.5-0.8B는 0.8B 규모, 약 1.63GiB BF16 checkpoint이며 checkpoint 자체에 native MTP layer가 있습니다. 따라서 베이스라인과 MTP 최적화 실험에서 target model을 바꾸지 않고 speculative decoding 설정만 변경할 수 있습니다. 공식 checkpoint는 멀티모달 구조이지만 과제 요청은 텍스트뿐이므로 vision 입력 경로를 끕니다. Docker VM 약 7.65GiB 안에서 실행하기 위해 Pod limit은 6.5GiB, KV cache는 512MiB로 제한했습니다. 모델을 이미지에 포함해 Pod 시작 시 외부 다운로드가 발생하지 않도록 했습니다.
+Qwen3.5-0.8B는 0.8B 규모, 약 1.63GiB BF16 checkpoint이며 checkpoint 자체에 native MTP layer가 있습니다. 따라서 베이스라인과 MTP 최적화 실험에서 target model을 바꾸지 않고 speculative decoding 설정만 변경할 수 있습니다. 공식 checkpoint는 멀티모달 구조이지만 과제 요청은 텍스트뿐이므로 vision 입력 경로를 끕니다. 기존 Apple M4 실험은 Docker VM 약 7.65GiB 안에서 실행하기 위해 Pod limit 6.5GiB와 KV cache 512MiB를 사용합니다. Windows/AMD64용 `k8s/components/windows-amd64`는 x86 런타임의 실제 메모리 사용량에 맞춰 모든 variant의 Pod limit만 8GiB로 올립니다. 모델은 이미지에 포함해 Pod 시작 시 외부 다운로드가 발생하지 않도록 했습니다.
 
 현재 베이스라인에는 speculative config를 넣지 않습니다. MTP overlay는 Qwen 공식 vLLM recipe와 동일하게 `--speculative-config '{"method":"qwen3_next_mtp","num_speculative_tokens":2}'`를 사용합니다. 실제 MTP 기동·부하 측정은 [최적화 분석 리포트](../reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md)에 기록했습니다.
 
@@ -61,12 +66,23 @@ Qwen3.5-0.8B는 0.8B 규모, 약 1.63GiB BF16 checkpoint이며 checkpoint 자체
 make preflight
 ```
 
-Apple ARM64, Docker Linux/ARM64, Docker 메모리, Docker/kubectl/Kind 버전을 확인합니다.
+macOS 진입점에서는 Apple ARM64와 Docker Linux/ARM64를 확인합니다. Windows에서는 다음 명령으로 Windows x64, Docker Linux/AMD64, Docker 메모리와 프로젝트에 고정된 kubectl/Kind를 확인합니다.
+
+```powershell
+.\project.ps1 install-kubectl
+.\project.ps1 preflight
+```
 
 ## 2. 모델 서빙 이미지 빌드
 
 ```bash
 make image
+```
+
+Windows PowerShell에서는 호스트에 맞는 linux/amd64 variant를 빌드합니다.
+
+```powershell
+.\project.ps1 image
 ```
 
 직접 실행할 경우 build context는 반드시 `model_serving/`입니다.
@@ -81,7 +97,7 @@ docker build \
 
 Dockerfile은 다음을 수행합니다.
 
-1. vLLM ARM64 CPU 이미지를 digest로 고정한다.
+1. vLLM 멀티아키텍처 CPU manifest를 digest로 고정하고 빌드 platform에 맞는 이미지를 선택한다.
 2. Qwen 모델을 고정 commit으로 `/models/qwen3.5-0.8b`에 저장한다.
 3. Hugging Face와 Transformers offline mode를 설정한다.
 4. OpenAI-compatible API server 기본 인자를 정의한다.
@@ -129,9 +145,9 @@ make status
 | Namespace | `llm-serving` |
 | Deployment | `vllm-cpu`, replica 1 |
 | Service | `vllm-cpu`, ClusterIP port 8000 |
-| Node selection | Linux/ARM64 + worker role |
+| Node selection | Linux + `llm-serving.local/worker=true` |
 | CPU request/limit | 4/6 cores |
-| Memory request/limit | 4Gi/6.5Gi |
+| Memory request/limit | macOS 4Gi/6.5Gi, Windows 4Gi/8Gi |
 | Probes | `/health` startup/readiness/liveness |
 | Image policy | `Never`, Kind에 로드된 이미지 전용 |
 
@@ -156,7 +172,7 @@ kubectl -n llm-serving exec deployment/vllm-cpu -- cat /sys/fs/cgroup/cpu.max
 
 예상 CPU limit은 `8`, cgroup 값은 `800000 100000`입니다. 동일 700건 A/B 절차와 결과는 [CPU limit 실험 README](../optimization/cpu8/README.md)와 [분석 리포트](../reports/results/05_BASELINE_CPU8_ANALYSIS.md)에 있습니다.
 
-### CPU limit 8에서 MTP·capacity bundle 배포
+### 보존된 Apple M4: CPU limit 8에서 MTP·capacity bundle 배포
 
 `mtp-cpu8`은 `baseline-cpu8`과 동일한 Pod CPU/memory request·limit에서 Qwen native MTP 2 tokens만 추가합니다. `mtp-kv-tuned-cpu8`은 같은 MTP 설정에서 BF16 KV byte 예산을 `512→768MiB`, `max-num-seqs`를 `20→24`로 동시에 바꾼 capacity bundle입니다. 이름의 `mtp-kv-tuned`는 기존 명령·결과 경로와의 호환성을 위해 유지한 legacy artifact ID이며 KV-only 변경을 뜻하지 않습니다.
 
@@ -170,7 +186,7 @@ make smoke
 
 두 overlay 모두 CPU limit은 8이고 GPU resource를 요청하지 않습니다. 시작 로그에서 `device_config=cpu`, `speculative_config=...num_spec_tokens=2`를 확인할 수 있습니다. KV 기동 capacity는 MTP와 capacity bundle에서 각각 9,137, 13,705 tokens로 측정됐습니다. bundle은 두 설정 인자를 함께 변경하므로 결과를 KV 또는 `max-num-seqs` 하나의 단독 인과효과로 해석하지 않습니다. 배포·측정 절차는 [CPU8 실험 README](../optimization/cpu8-mtp-kv/README.md), 결과는 [CPU8 분석 리포트](../reports/results/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
 
-### CPU limit 8에서 KV·max-num-seqs 단일 변수 배포
+### 보존된 Apple M4: CPU limit 8에서 KV·max-num-seqs 단일 변수 배포
 
 Legacy bundle의 혼합 변수를 분리하기 위해 다음 overlay를 추가했습니다.
 
@@ -198,6 +214,30 @@ kubectl kustomize model_serving/k8s/overlays/mtp-seq24-cpu8
 
 배포·측정 절차와 전체 표는 [CPU8 2×2 실험](../optimization/cpu8-factorial/README.md), 원본은 [KV-only 결과](../benchmark/results/mtp-kv768-cpu8/REPORT.md), [maxseq-only 결과](../benchmark/results/mtp-seq24-cpu8/REPORT.md), [8개 variant 종합 비교](../benchmark/results/comparison-all/REPORT.md)에 있습니다. `mtp-kv-tuned-cpu8` 이름은 기존 재현 명령과 결과 경로를 위한 legacy ID로 계속 유지합니다.
 
+### Windows CPU8 factor 배포
+
+정식 factor 실험은 `overlays/windows/` wrapper를 통해 모든 구성의 memory limit을 8GiB로 통일합니다. 기본 설정에서 MTP2, KV cache 768MiB와 FP8 KV cache를 각각 하나씩만 적용하고, 선별 실험에서 개선된 KV cache 768MiB와 FP8 KV cache만 마지막에 결합합니다.
+
+| Variant | MTP | KV budget | KV dtype | 용도 |
+|---|---|---:|---|---|
+| `baseline-cpu8` | off | 512MiB | BF16 | 공통 baseline |
+| `mtp-cpu8` | MTP2 | 512MiB | BF16 | MTP-only |
+| `baseline-kv768-cpu8` | off | 768MiB | BF16 | KV768-only |
+| `baseline-cpu8-fp8` | off | 512MiB | FP8 | FP8-only |
+| `baseline-kv768-fp8-cpu8` | off | 768MiB | FP8 | KV768+FP8 조합 |
+
+```powershell
+.\project.ps1 deploy -Variant baseline-kv768-cpu8
+.\project.ps1 wait
+.\project.ps1 smoke
+
+.\project.ps1 deploy -Variant baseline-kv768-fp8-cpu8
+.\project.ps1 wait
+.\project.ps1 smoke
+```
+
+전체 실행, gate와 결과는 [benchmark README](../benchmark/README.md)와 [최종 실험 보고서](../reports/final_report.md)를 봅니다.
+
 ## 6. 실제 추론 검증
 
 ```bash
@@ -217,6 +257,8 @@ kubectl -n llm-serving port-forward service/vllm-cpu 8000:8000
 ```
 
 ## 성공 기준과 실제 결과
+
+아래 표는 기존 Apple M4/ARM64 실행 기록입니다. 이 차례에서 검증한 Windows/AMD64 결과는 장비·이미지 크기·기동 시간이 다릅니다.
 
 | 항목 | 결과 |
 |---|---|

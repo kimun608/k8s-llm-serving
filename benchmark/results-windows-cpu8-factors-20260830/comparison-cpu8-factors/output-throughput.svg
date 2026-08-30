@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="650" viewBox="0 0 1180 650" role="img" aria-labelledby="title desc">
+<title id="title">Windows CPU8 independent-factor output throughput</title>
+<desc id="desc">Windows CPU8 independent-factor output throughput at client concurrencies 1, 2, 5, 10, 20, 50 and 100.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="590.0" y="34" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">Windows CPU8 independent-factor output throughput</text>
+<text x="590.0" y="59" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#4b5563">same workload, image, host and CPU limit · 100 requests per point</text>
+<line x1="90" y1="89" x2="114" y2="89" stroke="#1d4ed8" stroke-width="3"/>
+<text x="121" y="93" font-size="12" font-family="sans-serif">CPU8 baseline</text>
+<line x1="440" y1="89" x2="464" y2="89" stroke="#7c3aed" stroke-width="3"/>
+<text x="471" y="93" font-size="12" font-family="sans-serif">MTP2 only</text>
+<line x1="790" y1="89" x2="814" y2="89" stroke="#059669" stroke-width="3"/>
+<text x="821" y="93" font-size="12" font-family="sans-serif">KV768 only</text>
+<line x1="90" y1="116" x2="114" y2="116" stroke="#ea580c" stroke-width="3"/>
+<text x="121" y="120" font-size="12" font-family="sans-serif">FP8 KV only</text>
+<line x1="440" y1="116" x2="464" y2="116" stroke="#be123c" stroke-width="3"/>
+<text x="471" y="120" font-size="12" font-family="sans-serif">KV768 + FP8 KV</text>
+<line x1="90" y1="580.00" x2="1140" y2="580.00" stroke="#e5e7eb"/>
+<text x="80" y="584.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0.0</text>
+<line x1="90" y1="495.00" x2="1140" y2="495.00" stroke="#e5e7eb"/>
+<text x="80" y="499.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">40.0</text>
+<line x1="90" y1="410.00" x2="1140" y2="410.00" stroke="#e5e7eb"/>
+<text x="80" y="414.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">80.0</text>
+<line x1="90" y1="325.00" x2="1140" y2="325.00" stroke="#e5e7eb"/>
+<text x="80" y="329.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">120.0</text>
+<line x1="90" y1="240.00" x2="1140" y2="240.00" stroke="#e5e7eb"/>
+<text x="80" y="244.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">160.0</text>
+<line x1="90" y1="155.00" x2="1140" y2="155.00" stroke="#e5e7eb"/>
+<text x="80" y="159.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">200.0</text>
+<line x1="90.00" y1="155" x2="90.00" y2="580" stroke="#f3f4f6"/>
+<text x="90.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">1</text>
+<line x1="265.00" y1="155" x2="265.00" y2="580" stroke="#f3f4f6"/>
+<text x="265.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">2</text>
+<line x1="440.00" y1="155" x2="440.00" y2="580" stroke="#f3f4f6"/>
+<text x="440.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">5</text>
+<line x1="615.00" y1="155" x2="615.00" y2="580" stroke="#f3f4f6"/>
+<text x="615.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">10</text>
+<line x1="790.00" y1="155" x2="790.00" y2="580" stroke="#f3f4f6"/>
+<text x="790.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="965.00" y1="155" x2="965.00" y2="580" stroke="#f3f4f6"/>
+<text x="965.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">50</text>
+<line x1="1140.00" y1="155" x2="1140.00" y2="580" stroke="#f3f4f6"/>
+<text x="1140.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">100</text>
+<line x1="90" y1="155" x2="90" y2="580" stroke="#111827"/>
+<line x1="90" y1="580" x2="1140" y2="580" stroke="#111827"/>
+<text x="615.0" y="632" text-anchor="middle" font-size="14" font-family="sans-serif">Client concurrency</text>
+<text transform="translate(23 367.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Output tokens / second</text>
+<polyline points="90.00,532.64 265.00,497.03 440.00,433.75 615.00,379.43 790.00,362.00 965.00,363.81 1140.00,356.48" fill="none" stroke="#1d4ed8" stroke-width="2.8"/>
+<circle cx="90.00" cy="532.64" r="4" fill="#1d4ed8"/>
+<circle cx="265.00" cy="497.03" r="4" fill="#1d4ed8"/>
+<circle cx="440.00" cy="433.75" r="4" fill="#1d4ed8"/>
+<circle cx="615.00" cy="379.43" r="4" fill="#1d4ed8"/>
+<circle cx="790.00" cy="362.00" r="4" fill="#1d4ed8"/>
+<circle cx="965.00" cy="363.81" r="4" fill="#1d4ed8"/>
+<circle cx="1140.00" cy="356.48" r="4" fill="#1d4ed8"/>
+<polyline points="90.00,515.34 265.00,478.56 440.00,429.07 615.00,428.44 790.00,428.37 965.00,425.34 1140.00,426.28" fill="none" stroke="#7c3aed" stroke-width="2.8"/>
+<circle cx="90.00" cy="515.34" r="4" fill="#7c3aed"/>
+<circle cx="265.00" cy="478.56" r="4" fill="#7c3aed"/>
+<circle cx="440.00" cy="429.07" r="4" fill="#7c3aed"/>
+<circle cx="615.00" cy="428.44" r="4" fill="#7c3aed"/>
+<circle cx="790.00" cy="428.37" r="4" fill="#7c3aed"/>
+<circle cx="965.00" cy="425.34" r="4" fill="#7c3aed"/>
+<circle cx="1140.00" cy="426.28" r="4" fill="#7c3aed"/>
+<polyline points="90.00,532.50 265.00,497.13 440.00,433.90 615.00,381.84 790.00,339.74 965.00,340.78 1140.00,339.58" fill="none" stroke="#059669" stroke-width="2.8"/>
+<circle cx="90.00" cy="532.50" r="4" fill="#059669"/>
+<circle cx="265.00" cy="497.13" r="4" fill="#059669"/>
+<circle cx="440.00" cy="433.90" r="4" fill="#059669"/>
+<circle cx="615.00" cy="381.84" r="4" fill="#059669"/>
+<circle cx="790.00" cy="339.74" r="4" fill="#059669"/>
+<circle cx="965.00" cy="340.78" r="4" fill="#059669"/>
+<circle cx="1140.00" cy="339.58" r="4" fill="#059669"/>
+<polyline points="90.00,532.29 265.00,496.92 440.00,432.47 615.00,385.38 790.00,348.00 965.00,351.44 1140.00,347.44" fill="none" stroke="#ea580c" stroke-width="2.8"/>
+<circle cx="90.00" cy="532.29" r="4" fill="#ea580c"/>
+<circle cx="265.00" cy="496.92" r="4" fill="#ea580c"/>
+<circle cx="440.00" cy="432.47" r="4" fill="#ea580c"/>
+<circle cx="615.00" cy="385.38" r="4" fill="#ea580c"/>
+<circle cx="790.00" cy="348.00" r="4" fill="#ea580c"/>
+<circle cx="965.00" cy="351.44" r="4" fill="#ea580c"/>
+<circle cx="1140.00" cy="347.44" r="4" fill="#ea580c"/>
+<polyline points="90.00,532.37 265.00,497.48 440.00,432.58 615.00,380.88 790.00,340.17 965.00,339.39 1140.00,340.18" fill="none" stroke="#be123c" stroke-width="2.8"/>
+<circle cx="90.00" cy="532.37" r="4" fill="#be123c"/>
+<circle cx="265.00" cy="497.48" r="4" fill="#be123c"/>
+<circle cx="440.00" cy="432.58" r="4" fill="#be123c"/>
+<circle cx="615.00" cy="380.88" r="4" fill="#be123c"/>
+<circle cx="790.00" cy="340.17" r="4" fill="#be123c"/>
+<circle cx="965.00" cy="339.39" r="4" fill="#be123c"/>
+<circle cx="1140.00" cy="340.18" r="4" fill="#be123c"/>
+</svg>

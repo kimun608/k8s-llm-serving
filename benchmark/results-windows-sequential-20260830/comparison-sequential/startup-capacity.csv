@@ -1,0 +1,6 @@
+stage_order,stage,kv_cache_mib,kv_cache_dtype,kv_cache_tokens,max_concurrency_at_2048_tokens,pod_uid,restart_count
+0,baseline,512,auto (BF16),19894,9.71,7fb96a9c-db8a-4345-a57b-f2244a70c8e7,0
+1,baseline-cpu8,512,auto (BF16),19894,9.71,961ddc9b-a1af-49b4-931e-7ac06b774290,0
+2,mtp-cpu8,512,auto (BF16),9137,4.46,bc831ec6-a23f-4757-80ab-dae30704f75c,0
+3,mtp-kv768-cpu8,768,auto (BF16),13705,6.69,8ef1b4d1-2710-4621-bb81-6e469145c503,0
+4,mtp-kv768-fp8-cpu8,768,fp8,18059,8.82,ad18065f-d7c7-493d-99eb-771ffb0e4661,0

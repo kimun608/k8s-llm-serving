@@ -1,0 +1,100 @@
+Name:             vllm-cpu-58868b9dd9-pchvv
+Namespace:        llm-serving
+Priority:         0
+Service Account:  default
+Node:             project-process-worker/172.18.0.2
+Start Time:       Sun, 30 Aug 2026 12:26:16 +0900
+Labels:           app.kubernetes.io/component=inference-server
+                  app.kubernetes.io/name=vllm-cpu
+                  pod-template-hash=58868b9dd9
+                  serving-platform=windows-amd64
+                  serving-variant=baseline-kv768-cpu8
+Annotations:      llm-serving.local/image-id: sha256:37c064c6954b1abad00132826dfd42bb33d0b1803bab0fcf6956b946d12099fd
+Status:           Running
+IP:               10.244.1.12
+IPs:
+  IP:           10.244.1.12
+Controlled By:  ReplicaSet/vllm-cpu-58868b9dd9
+Containers:
+  vllm:
+    Container ID:    containerd://41c29e5f48481cbb890381cc3b932f78493213e13297d301bfde2420dfd7f430
+    Image:           local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0
+    Image ID:        sha256:24425e15907392db6807ed9af9a73c67ca054d5aeacfd0e6e14b59795d71b6be
+    Port:            8000/TCP
+    Host Port:       0/TCP
+    SeccompProfile:  Unconfined
+    Command:
+      vllm
+      serve
+    Args:
+      /models/qwen3.5-0.8b
+      --host
+      0.0.0.0
+      --port
+      8000
+      --served-model-name
+      qwen3.5-0.8b
+      --dtype
+      bfloat16
+      --language-model-only
+      --max-model-len
+      2048
+      --max-num-seqs
+      20
+      --max-num-batched-tokens
+      2048
+      --kv-cache-memory-bytes
+      805306368
+      --no-enable-prefix-caching
+    State:          Running
+      Started:      Sun, 30 Aug 2026 12:26:17 +0900
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     8
+      memory:  8Gi
+    Requests:
+      cpu:      4
+      memory:   4Gi
+    Liveness:   http-get http://:http/health delay=0s timeout=2s period=10s #success=1 #failure=3
+    Readiness:  http-get http://:http/health delay=0s timeout=2s period=5s #success=1 #failure=3
+    Startup:    http-get http://:http/health delay=0s timeout=2s period=5s #success=1 #failure=180
+    Environment:
+      HF_HUB_OFFLINE:          1
+      TRANSFORMERS_OFFLINE:    1
+      TOKENIZERS_PARALLELISM:  false
+      PYTHONUNBUFFERED:        1
+    Mounts:
+      /dev/shm from dshm (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-hmgzg (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  dshm:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  512Mi
+  kube-api-access-hmgzg:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              kubernetes.io/os=linux
+                             llm-serving.local/worker=true
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason     Age                 From               Message
+  ----     ------     ----                ----               -------
+  Normal   Scheduled  15m                 default-scheduler  Successfully assigned llm-serving/vllm-cpu-58868b9dd9-pchvv to project-process-worker
+  Normal   Pulled     15m                 kubelet            Container image "local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0" already present on machine
+  Normal   Created    15m                 kubelet            Created container: vllm
+  Normal   Started    15m                 kubelet            Started container vllm
+  Warning  Unhealthy  13m (x15 over 15m)  kubelet            Startup probe failed: Get "http://10.244.1.12:8000/health": dial tcp 10.244.1.12:8000: connect: connection refused

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "status": "completed",
+  "started_at": "2026-08-30T11:56:11.9338153+09:00",
+  "finished_at": "2026-08-30T13:16:08.8584238+09:00",
+  "variants": [
+    "baseline-cpu8",
+    "baseline-cpu8-fp8",
+    "baseline-kv768-cpu8",
+    "baseline-kv768-fp8-cpu8",
+    "mtp-cpu8"
+  ],
+  "source_fingerprint": "5A263842F7CCFB0DD6AB2BB3F2A14E2CC7CAB4B8741F67A209323931ED067470",
+  "benchmark_runner_sha256": "FB4E18E79C5542E7C0D11B58907F9F5F0C0AEA9CF9DBD3F18ACD81B02BC2F248",
+  "docker_fingerprint": "16|16586010624|x86_64|29.7.2",
+  "git_commit": "0ce873c6357f2a1813432c54b6a580c5cd1742f3",
+  "comparison_report": "E:\\개발\\Project\\k8s-llm-serving\\benchmark\\results-windows-cpu8-factors-20260830\\comparison-cpu8-factors\\REPORT.md",
+  "invocations": [
+    {
+      "started_at": "2026-08-30T11:56:11.9338153+09:00",
+      "finished_at": "2026-08-30T12:58:27.0279534+09:00",
+      "status": "completed",
+      "variants": [
+        "baseline-cpu8",
+        "mtp-cpu8",
+        "baseline-kv768-cpu8",
+        "baseline-cpu8-fp8"
+      ],
+      "comparison_report": "E:\\개발\\Project\\k8s-llm-serving\\benchmark\\results-windows-cpu8-factors-20260830\\comparison-cpu8-factors\\REPORT.md"
+    },
+    {
+      "started_at": "2026-08-30T12:59:15.5656929+09:00",
+      "finished_at": "2026-08-30T13:16:08.8584238+09:00",
+      "status": "completed",
+      "variants": [
+        "baseline-kv768-fp8-cpu8"
+      ],
+      "comparison_report": "E:\\개발\\Project\\k8s-llm-serving\\benchmark\\results-windows-cpu8-factors-20260830\\comparison-cpu8-factors\\REPORT.md"
+    }
+  ]
+}

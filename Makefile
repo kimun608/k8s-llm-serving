@@ -68,7 +68,21 @@ image:
 	docker image inspect "$(IMAGE)" --format 'image={{.RepoTags}} id={{.Id}} size={{.Size}} arch={{.Architecture}}'
 
 cluster: install-kind
-	"$(KIND)" create cluster --name "$(CLUSTER_NAME)" --image "$(KIND_NODE_IMAGE)" --config "$(K8S_DIR)/kind/cluster.yaml" --wait 180s
+	@if "$(KIND)" get clusters | grep -Fxq "$(CLUSTER_NAME)"; then \
+		echo "Kind cluster $(CLUSTER_NAME) already exists; leaving it in place."; \
+	else \
+		"$(KIND)" create cluster --name "$(CLUSTER_NAME)" --image "$(KIND_NODE_IMAGE)" --config "$(K8S_DIR)/kind/cluster.yaml" --wait 180s; \
+	fi
+	"$(KIND)" export kubeconfig --name "$(CLUSTER_NAME)"
+	@for node_name in $$("$(KIND)" get nodes --name "$(CLUSTER_NAME)"); do \
+		actual_image="$$(docker inspect "$$node_name" --format '{{.Config.Image}}')"; \
+		if [[ "$$actual_image" != "$(KIND_NODE_IMAGE)" ]]; then \
+			echo "Kind node $$node_name uses $$actual_image; expected $(KIND_NODE_IMAGE). Run make clean-cluster, then make cluster." >&2; \
+			exit 1; \
+		fi; \
+	done
+	kubectl label node "$(CLUSTER_NAME)-worker" llm-serving.local/worker=true --overwrite
+	kubectl label node "$(CLUSTER_NAME)-worker" node-role.kubernetes.io/worker= --overwrite
 
 load:
 	"$(KIND)" load docker-image "$(IMAGE)" --name "$(CLUSTER_NAME)"

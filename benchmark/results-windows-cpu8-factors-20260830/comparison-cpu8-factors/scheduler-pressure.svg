@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="820" viewBox="0 0 1180 820" role="img" aria-labelledby="title desc">
+<title id="title">Windows CPU8 factor scheduler pressure</title>
+<desc id="desc">Separate panels compare sampled peak running and waiting requests for each factor.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="590.0" y="34" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">CPU8 factor scheduler pressure</text>
+<text x="590.0" y="59" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#4b5563">sampled phase peaks · running and waiting use separate panels</text>
+<line x1="90" y1="91" x2="114" y2="91" stroke="#1d4ed8" stroke-width="3"/>
+<text x="121" y="95" font-size="12" font-family="sans-serif">CPU8 baseline</text>
+<line x1="440" y1="91" x2="464" y2="91" stroke="#7c3aed" stroke-width="3"/>
+<text x="471" y="95" font-size="12" font-family="sans-serif">MTP2 only</text>
+<line x1="790" y1="91" x2="814" y2="91" stroke="#059669" stroke-width="3"/>
+<text x="821" y="95" font-size="12" font-family="sans-serif">KV768 only</text>
+<line x1="90" y1="118" x2="114" y2="118" stroke="#ea580c" stroke-width="3"/>
+<text x="121" y="122" font-size="12" font-family="sans-serif">FP8 KV only</text>
+<line x1="440" y1="118" x2="464" y2="118" stroke="#be123c" stroke-width="3"/>
+<text x="471" y="122" font-size="12" font-family="sans-serif">KV768 + FP8 KV</text>
+<text x="90" y="147" font-size="16" font-family="sans-serif" font-weight="600">Peak running requests</text>
+<line x1="90" y1="395.00" x2="1140" y2="395.00" stroke="#e5e7eb"/>
+<text x="80" y="399.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0</text>
+<line x1="90" y1="337.50" x2="1140" y2="337.50" stroke="#e5e7eb"/>
+<text x="80" y="341.50" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">12</text>
+<line x1="90" y1="280.00" x2="1140" y2="280.00" stroke="#e5e7eb"/>
+<text x="80" y="284.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">25</text>
+<line x1="90" y1="222.50" x2="1140" y2="222.50" stroke="#e5e7eb"/>
+<text x="80" y="226.50" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">38</text>
+<line x1="90" y1="165.00" x2="1140" y2="165.00" stroke="#e5e7eb"/>
+<text x="80" y="169.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">50</text>
+<line x1="90.00" y1="165" x2="90.00" y2="395" stroke="#f3f4f6"/>
+<line x1="265.00" y1="165" x2="265.00" y2="395" stroke="#f3f4f6"/>
+<line x1="440.00" y1="165" x2="440.00" y2="395" stroke="#f3f4f6"/>
+<line x1="615.00" y1="165" x2="615.00" y2="395" stroke="#f3f4f6"/>
+<line x1="790.00" y1="165" x2="790.00" y2="395" stroke="#f3f4f6"/>
+<line x1="965.00" y1="165" x2="965.00" y2="395" stroke="#f3f4f6"/>
+<line x1="1140.00" y1="165" x2="1140.00" y2="395" stroke="#f3f4f6"/>
+<polyline points="90.00,390.40 265.00,385.80 440.00,372.00 615.00,349.00 790.00,321.40 965.00,321.40 1140.00,321.40" fill="none" stroke="#1d4ed8" stroke-width="2.8"/>
+<circle cx="90.00" cy="390.40" r="4" fill="#1d4ed8"/>
+<circle cx="265.00" cy="385.80" r="4" fill="#1d4ed8"/>
+<circle cx="440.00" cy="372.00" r="4" fill="#1d4ed8"/>
+<circle cx="615.00" cy="349.00" r="4" fill="#1d4ed8"/>
+<circle cx="790.00" cy="321.40" r="4" fill="#1d4ed8"/>
+<circle cx="965.00" cy="321.40" r="4" fill="#1d4ed8"/>
+<circle cx="1140.00" cy="321.40" r="4" fill="#1d4ed8"/>
+<polyline points="90.00,390.40 265.00,385.80 440.00,372.00 615.00,372.00 790.00,372.00 965.00,372.00 1140.00,372.00" fill="none" stroke="#7c3aed" stroke-width="2.8"/>
+<circle cx="90.00" cy="390.40" r="4" fill="#7c3aed"/>
+<circle cx="265.00" cy="385.80" r="4" fill="#7c3aed"/>
+<circle cx="440.00" cy="372.00" r="4" fill="#7c3aed"/>
+<circle cx="615.00" cy="372.00" r="4" fill="#7c3aed"/>
+<circle cx="790.00" cy="372.00" r="4" fill="#7c3aed"/>
+<circle cx="965.00" cy="372.00" r="4" fill="#7c3aed"/>
+<circle cx="1140.00" cy="372.00" r="4" fill="#7c3aed"/>
+<polyline points="90.00,390.40 265.00,385.80 440.00,372.00 615.00,349.00 790.00,303.00 965.00,303.00 1140.00,303.00" fill="none" stroke="#059669" stroke-width="2.8"/>
+<circle cx="90.00" cy="390.40" r="4" fill="#059669"/>
+<circle cx="265.00" cy="385.80" r="4" fill="#059669"/>
+<circle cx="440.00" cy="372.00" r="4" fill="#059669"/>
+<circle cx="615.00" cy="349.00" r="4" fill="#059669"/>
+<circle cx="790.00" cy="303.00" r="4" fill="#059669"/>
+<circle cx="965.00" cy="303.00" r="4" fill="#059669"/>
+<circle cx="1140.00" cy="303.00" r="4" fill="#059669"/>
+<polyline points="90.00,390.40 265.00,385.80 440.00,372.00 615.00,349.00 790.00,312.20 965.00,312.20 1140.00,312.20" fill="none" stroke="#ea580c" stroke-width="2.8"/>
+<circle cx="90.00" cy="390.40" r="4" fill="#ea580c"/>
+<circle cx="265.00" cy="385.80" r="4" fill="#ea580c"/>
+<circle cx="440.00" cy="372.00" r="4" fill="#ea580c"/>
+<circle cx="615.00" cy="349.00" r="4" fill="#ea580c"/>
+<circle cx="790.00" cy="312.20" r="4" fill="#ea580c"/>
+<circle cx="965.00" cy="312.20" r="4" fill="#ea580c"/>
+<circle cx="1140.00" cy="312.20" r="4" fill="#ea580c"/>
+<polyline points="90.00,390.40 265.00,385.80 440.00,372.00 615.00,349.00 790.00,303.00 965.00,303.00 1140.00,303.00" fill="none" stroke="#be123c" stroke-width="2.8"/>
+<circle cx="90.00" cy="390.40" r="4" fill="#be123c"/>
+<circle cx="265.00" cy="385.80" r="4" fill="#be123c"/>
+<circle cx="440.00" cy="372.00" r="4" fill="#be123c"/>
+<circle cx="615.00" cy="349.00" r="4" fill="#be123c"/>
+<circle cx="790.00" cy="303.00" r="4" fill="#be123c"/>
+<circle cx="965.00" cy="303.00" r="4" fill="#be123c"/>
+<circle cx="1140.00" cy="303.00" r="4" fill="#be123c"/>
+<text x="90" y="482" font-size="16" font-family="sans-serif" font-weight="600">Peak waiting requests</text>
+<line x1="90" y1="730.00" x2="1140" y2="730.00" stroke="#e5e7eb"/>
+<text x="80" y="734.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0</text>
+<line x1="90" y1="672.50" x2="1140" y2="672.50" stroke="#e5e7eb"/>
+<text x="80" y="676.50" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">50</text>
+<line x1="90" y1="615.00" x2="1140" y2="615.00" stroke="#e5e7eb"/>
+<text x="80" y="619.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">100</text>
+<line x1="90" y1="557.50" x2="1140" y2="557.50" stroke="#e5e7eb"/>
+<text x="80" y="561.50" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">150</text>
+<line x1="90" y1="500.00" x2="1140" y2="500.00" stroke="#e5e7eb"/>
+<text x="80" y="504.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">200</text>
+<line x1="90.00" y1="500" x2="90.00" y2="730" stroke="#f3f4f6"/>
+<text x="90.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">1</text>
+<line x1="265.00" y1="500" x2="265.00" y2="730" stroke="#f3f4f6"/>
+<text x="265.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">2</text>
+<line x1="440.00" y1="500" x2="440.00" y2="730" stroke="#f3f4f6"/>
+<text x="440.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">5</text>
+<line x1="615.00" y1="500" x2="615.00" y2="730" stroke="#f3f4f6"/>
+<text x="615.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">10</text>
+<line x1="790.00" y1="500" x2="790.00" y2="730" stroke="#f3f4f6"/>
+<text x="790.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="965.00" y1="500" x2="965.00" y2="730" stroke="#f3f4f6"/>
+<text x="965.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">50</text>
+<line x1="1140.00" y1="500" x2="1140.00" y2="730" stroke="#f3f4f6"/>
+<text x="1140.00" y="755" text-anchor="middle" font-size="13" font-family="sans-serif">100</text>
+<polyline points="90.00,730.00 265.00,730.00 440.00,730.00 615.00,728.85 790.00,717.35 965.00,682.85 1140.00,626.50" fill="none" stroke="#1d4ed8" stroke-width="2.8"/>
+<circle cx="90.00" cy="730.00" r="4" fill="#1d4ed8"/>
+<circle cx="265.00" cy="730.00" r="4" fill="#1d4ed8"/>
+<circle cx="440.00" cy="730.00" r="4" fill="#1d4ed8"/>
+<circle cx="615.00" cy="728.85" r="4" fill="#1d4ed8"/>
+<circle cx="790.00" cy="717.35" r="4" fill="#1d4ed8"/>
+<circle cx="965.00" cy="682.85" r="4" fill="#1d4ed8"/>
+<circle cx="1140.00" cy="626.50" r="4" fill="#1d4ed8"/>
+<polyline points="90.00,730.00 265.00,730.00 440.00,730.00 615.00,724.25 790.00,712.75 965.00,678.25 1140.00,620.75" fill="none" stroke="#7c3aed" stroke-width="2.8"/>
+<circle cx="90.00" cy="730.00" r="4" fill="#7c3aed"/>
+<circle cx="265.00" cy="730.00" r="4" fill="#7c3aed"/>
+<circle cx="440.00" cy="730.00" r="4" fill="#7c3aed"/>
+<circle cx="615.00" cy="724.25" r="4" fill="#7c3aed"/>
+<circle cx="790.00" cy="712.75" r="4" fill="#7c3aed"/>
+<circle cx="965.00" cy="678.25" r="4" fill="#7c3aed"/>
+<circle cx="1140.00" cy="620.75" r="4" fill="#7c3aed"/>
+<polyline points="90.00,730.00 265.00,730.00 440.00,730.00 615.00,727.70 790.00,717.35 965.00,682.85 1140.00,626.50" fill="none" stroke="#059669" stroke-width="2.8"/>
+<circle cx="90.00" cy="730.00" r="4" fill="#059669"/>
+<circle cx="265.00" cy="730.00" r="4" fill="#059669"/>
+<circle cx="440.00" cy="730.00" r="4" fill="#059669"/>
+<circle cx="615.00" cy="727.70" r="4" fill="#059669"/>
+<circle cx="790.00" cy="717.35" r="4" fill="#059669"/>
+<circle cx="965.00" cy="682.85" r="4" fill="#059669"/>
+<circle cx="1140.00" cy="626.50" r="4" fill="#059669"/>
+<polyline points="90.00,730.00 265.00,730.00 440.00,730.00 615.00,727.70 790.00,717.35 965.00,682.85 1140.00,625.35" fill="none" stroke="#ea580c" stroke-width="2.8"/>
+<circle cx="90.00" cy="730.00" r="4" fill="#ea580c"/>
+<circle cx="265.00" cy="730.00" r="4" fill="#ea580c"/>
+<circle cx="440.00" cy="730.00" r="4" fill="#ea580c"/>
+<circle cx="615.00" cy="727.70" r="4" fill="#ea580c"/>
+<circle cx="790.00" cy="717.35" r="4" fill="#ea580c"/>
+<circle cx="965.00" cy="682.85" r="4" fill="#ea580c"/>
+<circle cx="1140.00" cy="625.35" r="4" fill="#ea580c"/>
+<polyline points="90.00,730.00 265.00,730.00 440.00,730.00 615.00,727.70 790.00,717.35 965.00,684.00 1140.00,625.35" fill="none" stroke="#be123c" stroke-width="2.8"/>
+<circle cx="90.00" cy="730.00" r="4" fill="#be123c"/>
+<circle cx="265.00" cy="730.00" r="4" fill="#be123c"/>
+<circle cx="440.00" cy="730.00" r="4" fill="#be123c"/>
+<circle cx="615.00" cy="727.70" r="4" fill="#be123c"/>
+<circle cx="790.00" cy="717.35" r="4" fill="#be123c"/>
+<circle cx="965.00" cy="684.00" r="4" fill="#be123c"/>
+<circle cx="1140.00" cy="625.35" r="4" fill="#be123c"/>
+<text x="615.0" y="802" text-anchor="middle" font-size="14" font-family="sans-serif">Client concurrency</text>
+</svg>

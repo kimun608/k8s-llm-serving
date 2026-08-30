@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520">
+<rect width="100%" height="100%" fill="white"/>
+<text x="460.0" y="32" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">E2E latency vs concurrency</text>
+<line x1="90" y1="445.00" x2="885" y2="445.00" stroke="#e5e7eb"/>
+<text x="78" y="449.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0.00</text>
+<line x1="90" y1="370.00" x2="885" y2="370.00" stroke="#e5e7eb"/>
+<text x="78" y="374.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">4.00</text>
+<line x1="90" y1="295.00" x2="885" y2="295.00" stroke="#e5e7eb"/>
+<text x="78" y="299.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">8.00</text>
+<line x1="90" y1="220.00" x2="885" y2="220.00" stroke="#e5e7eb"/>
+<text x="78" y="224.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">12.00</text>
+<line x1="90" y1="145.00" x2="885" y2="145.00" stroke="#e5e7eb"/>
+<text x="78" y="149.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">16.00</text>
+<line x1="90" y1="70.00" x2="885" y2="70.00" stroke="#e5e7eb"/>
+<text x="78" y="74.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">20.00</text>
+<line x1="487.50" y1="70" x2="487.50" y2="445" stroke="#f3f4f6"/>
+<text x="487.50" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="90" y1="70" x2="90" y2="445" stroke="#111827"/>
+<line x1="90" y1="445" x2="885" y2="445" stroke="#111827"/>
+<text x="487.5" y="500" text-anchor="middle" font-size="14" font-family="sans-serif">Concurrency</text>
+<text transform="translate(22 257.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Seconds / request</text>
+<polyline points="487.50,239.51" fill="none" stroke="#2563eb" stroke-width="3"/>
+<circle cx="487.50" cy="239.51" r="4" fill="#2563eb"/>
+<line x1="102" y1="52" x2="126" y2="52" stroke="#2563eb" stroke-width="3"/>
+<text x="132" y="56" font-size="13" font-family="sans-serif">p50</text>
+<polyline points="487.50,190.72" fill="none" stroke="#dc2626" stroke-width="3"/>
+<circle cx="487.50" cy="190.72" r="4" fill="#dc2626"/>
+<line x1="292" y1="52" x2="316" y2="52" stroke="#dc2626" stroke-width="3"/>
+<text x="322" y="56" font-size="13" font-family="sans-serif">p95</text>
+<polyline points="487.50,190.17" fill="none" stroke="#059669" stroke-width="3"/>
+<circle cx="487.50" cy="190.17" r="4" fill="#059669"/>
+<line x1="482" y1="52" x2="506" y2="52" stroke="#059669" stroke-width="3"/>
+<text x="512" y="56" font-size="13" font-family="sans-serif">p99</text>
+</svg>

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="kv-growth-title kv-growth-desc">
+<title id="kv-growth-title">Concurrency versus peak KV cache occupancy</title>
+<desc id="kv-growth-desc">Sampled peak KV-cache occupancy for CPU8 MTP2 max-num-seqs 20. S2 · KV512: C1 98.8 MiB (19.3 percent), C2 188.6 MiB (36.8 percent), C5 467.1 MiB (91.2 percent), C10 467.1 MiB (91.2 percent), C20 467.1 MiB (91.2 percent), C50 467.1 MiB (91.2 percent), C100 467.1 MiB (91.2 percent); S3 · KV768: C1 98.2 MiB (12.8 percent), C2 187.5 MiB (24.4 percent), C5 464.4 MiB (60.5 percent), C10 741.2 MiB (96.5 percent), C20 741.2 MiB (96.5 percent), C50 741.2 MiB (96.5 percent), C100 741.2 MiB (96.5 percent); S4 · 8-bit KV768: C1 80.0 MiB (10.4 percent), C2 160.0 MiB (20.8 percent), C5 400.0 MiB (52.1 percent), C10 720.0 MiB (93.8 percent), C20 720.0 MiB (93.8 percent), C50 720.0 MiB (93.8 percent), C100 720.0 MiB (93.8 percent). Budget-equivalent MiB equals configured KV budget multiplied by the one-second sampled peak used-block percentage; it is not Pod RSS.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="640.0" y="36" text-anchor="middle" font-size="23" font-family="sans-serif" font-weight="600">동시성 증가에 따른 peak KV cache 점유</text>
+<text x="640.0" y="64" text-anchor="middle" font-size="14" font-family="sans-serif" fill="#4b5563">CPU 8 · MTP2 · max-num-seqs 20 · 동일 100 prompts</text>
+<line x1="152.50" y1="103" x2="182.50" y2="103" stroke="#2563eb" stroke-width="3"/>
+<text x="191.50" y="108" font-size="14" font-family="sans-serif">S2 · KV512</text>
+<line x1="492.50" y1="103" x2="522.50" y2="103" stroke="#7c3aed" stroke-width="3" stroke-dasharray="5 4"/>
+<text x="531.50" y="108" font-size="14" font-family="sans-serif">S3 · KV768</text>
+<line x1="832.50" y1="103" x2="862.50" y2="103" stroke="#ea580c" stroke-width="3" stroke-dasharray="2 3"/>
+<text x="871.50" y="108" font-size="14" font-family="sans-serif">S4 · 8-bit KV768</text>
+<line x1="120" y1="650.00" x2="1205" y2="650.00" stroke="#e5e7eb"/>
+<text x="108" y="654.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0</text>
+<line x1="120" y1="551.00" x2="1205" y2="551.00" stroke="#e5e7eb"/>
+<text x="108" y="555.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">160</text>
+<line x1="120" y1="452.00" x2="1205" y2="452.00" stroke="#e5e7eb"/>
+<text x="108" y="456.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">320</text>
+<line x1="120" y1="353.00" x2="1205" y2="353.00" stroke="#e5e7eb"/>
+<text x="108" y="357.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">480</text>
+<line x1="120" y1="254.00" x2="1205" y2="254.00" stroke="#e5e7eb"/>
+<text x="108" y="258.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">640</text>
+<line x1="120" y1="155.00" x2="1205" y2="155.00" stroke="#e5e7eb"/>
+<text x="108" y="159.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">800</text>
+<line x1="120" y1="333.20" x2="1205" y2="333.20" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="7 5"/>
+<text x="1200" y="326.20" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">512MiB configured ceiling</text>
+<line x1="120" y1="174.80" x2="1205" y2="174.80" stroke="#9ca3af" stroke-width="1.2" stroke-dasharray="7 5"/>
+<text x="1200" y="167.80" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">768MiB configured ceiling</text>
+<line x1="120.00" y1="155" x2="120.00" y2="650" stroke="#f3f4f6"/>
+<text x="120.00" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">1</text>
+<line x1="300.83" y1="155" x2="300.83" y2="650" stroke="#f3f4f6"/>
+<text x="300.83" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">2</text>
+<line x1="481.67" y1="155" x2="481.67" y2="650" stroke="#f3f4f6"/>
+<text x="481.67" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">5</text>
+<line x1="662.50" y1="155" x2="662.50" y2="650" stroke="#f3f4f6"/>
+<text x="662.50" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">10</text>
+<line x1="843.33" y1="155" x2="843.33" y2="650" stroke="#f3f4f6"/>
+<text x="843.33" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="1024.17" y1="155" x2="1024.17" y2="650" stroke="#f3f4f6"/>
+<text x="1024.17" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">50</text>
+<line x1="1205.00" y1="155" x2="1205.00" y2="650" stroke="#f3f4f6"/>
+<text x="1205.00" y="677" text-anchor="middle" font-size="13" font-family="sans-serif">100</text>
+<line x1="120" y1="155" x2="120" y2="650" stroke="#111827"/>
+<line x1="120" y1="650" x2="1205" y2="650" stroke="#111827"/>
+<text x="662.5" y="707" text-anchor="middle" font-size="14" font-family="sans-serif">Client concurrency (100 requests total)</text>
+<text transform="translate(28 402.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Budget-equivalent peak KV occupancy (MiB)</text>
+<polyline points="120.00,588.86 300.83,533.28 481.67,360.99 662.50,360.99 843.33,360.99 1024.17,360.99 1205.00,360.99" fill="none" stroke="#2563eb" stroke-width="3"/>
+<circle cx="120.00" cy="588.86" r="4.5" fill="#2563eb"/>
+<circle cx="300.83" cy="533.28" r="4.5" fill="#2563eb"/>
+<circle cx="481.67" cy="360.99" r="4.5" fill="#2563eb"/>
+<circle cx="662.50" cy="360.99" r="4.5" fill="#2563eb"/>
+<circle cx="843.33" cy="360.99" r="4.5" fill="#2563eb"/>
+<circle cx="1024.17" cy="360.99" r="4.5" fill="#2563eb"/>
+<circle cx="1205.00" cy="360.99" r="4.5" fill="#2563eb"/>
+<polyline points="120.00,589.22 300.83,533.96 481.67,362.67 662.50,191.38 843.33,191.38 1024.17,191.38 1205.00,191.38" fill="none" stroke="#7c3aed" stroke-width="3" stroke-dasharray="5 4"/>
+<rect x="115.50" y="584.72" width="9" height="9" fill="#7c3aed"/>
+<rect x="296.33" y="529.46" width="9" height="9" fill="#7c3aed"/>
+<rect x="477.17" y="358.17" width="9" height="9" fill="#7c3aed"/>
+<rect x="658.00" y="186.88" width="9" height="9" fill="#7c3aed"/>
+<rect x="838.83" y="186.88" width="9" height="9" fill="#7c3aed"/>
+<rect x="1019.67" y="186.88" width="9" height="9" fill="#7c3aed"/>
+<rect x="1200.50" y="186.88" width="9" height="9" fill="#7c3aed"/>
+<polyline points="120.00,600.50 300.83,551.00 481.67,402.50 662.50,204.50 843.33,204.50 1024.17,204.50 1205.00,204.50" fill="none" stroke="#ea580c" stroke-width="3" stroke-dasharray="2 3"/>
+<polygon points="120.00,594.50 126.00,600.50 120.00,606.50 114.00,600.50" fill="#ea580c"/>
+<polygon points="300.83,545.00 306.83,551.00 300.83,557.00 294.83,551.00" fill="#ea580c"/>
+<polygon points="481.67,396.50 487.67,402.50 481.67,408.50 475.67,402.50" fill="#ea580c"/>
+<polygon points="662.50,198.50 668.50,204.50 662.50,210.50 656.50,204.50" fill="#ea580c"/>
+<polygon points="843.33,198.50 849.33,204.50 843.33,210.50 837.33,204.50" fill="#ea580c"/>
+<polygon points="1024.17,198.50 1030.17,204.50 1024.17,210.50 1018.17,204.50" fill="#ea580c"/>
+<polygon points="1205.00,198.50 1211.00,204.50 1205.00,210.50 1199.00,204.50" fill="#ea580c"/>
+<text x="640.0" y="736" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#4b5563">Budget-equivalent MiB = configured KV budget × sampled peak used-block ratio · Pod RSS가 아님</text>
+</svg>

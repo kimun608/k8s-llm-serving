@@ -8,6 +8,7 @@ import csv
 import html
 import json
 import math
+import os
 import statistics
 from collections import defaultdict
 from pathlib import Path
@@ -387,7 +388,10 @@ def create_charts(input_dir: Path, rows: list[dict]) -> None:
         "GiB",
     )
 
-    first_phase = sorted(json.loads((input_dir / "run-manifest.json").read_text())["phases"], key=lambda item: item["concurrency"])[0]
+    first_phase = sorted(
+        json.loads((input_dir / "run-manifest.json").read_text(encoding="utf-8"))["phases"],
+        key=lambda item: item["concurrency"],
+    )[0]
     requests = [row for row in read_jsonl(input_dir / first_phase["requests_file"]) if row["status"] == "success"]
     tokens_by_source: dict[str, list[int]] = defaultdict(list)
     for request in requests:
@@ -411,20 +415,46 @@ def ratio(after: float, before: float) -> str:
 def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
     first, last = rows[0], rows[-1]
     best = max(rows, key=lambda row: row["output_token_throughput_tps"])
+    saturation = next(
+        row
+        for row in rows
+        if row["output_token_throughput_tps"]
+        >= best["output_token_throughput_tps"] * 0.95
+    )
     first_wait = next((row for row in rows if row["peak_waiting_requests"] > 0), None)
     total_prefix_hits = sum(value for value in (row["prefix_cache_hits_delta"] for row in rows) if math.isfinite(value))
     total_preemptions = sum(value for value in (row["preemptions_delta"] for row in rows) if math.isfinite(value))
     total_oom = sum(value for value in (row["oom_kill_events_delta"] for row in rows) if math.isfinite(value))
     row_by_concurrency = {row["concurrency"]: row for row in rows}
-    c20 = row_by_concurrency.get(20, rows[-1])
-    throughput_gain_after_c20 = 100 * (
-        best["output_token_throughput_tps"] / c20["output_token_throughput_tps"] - 1
+    throughput_gain_after_saturation = 100 * (
+        best["output_token_throughput_tps"]
+        / saturation["output_token_throughput_tps"]
+        - 1
     )
-    c1_to_c20_throughput = c20["output_token_throughput_tps"] / first["output_token_throughput_tps"]
-    c20_to_last_e2e_p95 = last["e2e_seconds_p95"] / c20["e2e_seconds_p95"]
+    c1_to_saturation_throughput = (
+        saturation["output_token_throughput_tps"]
+        / first["output_token_throughput_tps"]
+    )
+    saturation_to_last_e2e_p95 = (
+        last["e2e_seconds_p95"] / saturation["e2e_seconds_p95"]
+    )
     host = manifest.get("environment", {}).get("host", {})
     docker = manifest.get("environment", {}).get("docker", {}) or {}
     container = manifest.get("environment", {}).get("kubernetes", {}).get("container", {}) or {}
+    container_args = container.get("args", []) or []
+    resources = container.get("resources", {}) or {}
+    cpu_limit = (resources.get("limits", {}) or {}).get("cpu", "unknown")
+
+    def argument_value(flag: str, default: str) -> str:
+        try:
+            return str(container_args[container_args.index(flag) + 1])
+        except (ValueError, IndexError):
+            return default
+
+    kv_bytes = int(argument_value("--kv-cache-memory-bytes", "0"))
+    kv_mib = kv_bytes / 1024**2
+    max_num_seqs = argument_value("--max-num-seqs", "unknown")
+    max_average_cpu = max(row["avg_pod_cpu_cores"] for row in rows)
     server_version_value = manifest.get("server_version")
     if isinstance(server_version_value, dict):
         server_version_value = server_version_value.get("version")
@@ -444,19 +474,46 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 
     experiment = manifest.get("config", {}).get("experiment", "baseline")
     if experiment != "baseline":
-        analysis_report = (
-            "reports/results/05_BASELINE_CPU8_ANALYSIS.md"
-            if experiment == "baseline-cpu8"
-            else (
-                "reports/results/07_FINAL_COMPREHENSIVE_ANALYSIS.md"
-                if experiment in {"mtp-kv768-cpu8", "mtp-seq24-cpu8"}
-                else (
-                    "reports/results/06_CPU8_MTP_KV_ANALYSIS.md"
-                    if experiment in {"mtp-cpu8", "mtp-kv-tuned-cpu8"}
-                    else "reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md"
-                )
-            )
+        results_root = (
+            input_dir.parent.parent
+            if input_dir.parent.name in {"validation-gates", "validation-repeats"}
+            else input_dir.parent
         )
+        for parent in input_dir.parents:
+            if (parent / "baseline").is_dir():
+                results_root = parent
+                break
+        sequential_variants = {
+            "baseline-cpu8",
+            "mtp-cpu8",
+            "mtp-kv768-cpu8",
+            "mtp-kv768-fp8-cpu8",
+        }
+        cpu8_factor_variants = {
+            "baseline-cpu8",
+            "mtp-cpu8",
+            "baseline-kv768-cpu8",
+            "baseline-cpu8-fp8",
+            "baseline-kv768-fp8-cpu8",
+        }
+        if experiment in {
+            "baseline-kv768-cpu8",
+            "baseline-cpu8-fp8",
+            "baseline-kv768-fp8-cpu8",
+        } or (
+            experiment in cpu8_factor_variants
+            and (results_root / "baseline-kv768-cpu8").is_dir()
+        ):
+            comparison_directory = "comparison-cpu8-factors"
+        elif experiment in sequential_variants:
+            comparison_directory = "comparison-sequential"
+        else:
+            comparison_directory = "comparison-all"
+        comparison_link = Path(
+            os.path.relpath(
+                results_root / comparison_directory / "REPORT.md", input_dir
+            )
+        ).as_posix()
         acceptance_values = [
             row["spec_acceptance_percent"]
             for row in rows
@@ -497,7 +554,7 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 - [Pod memory](charts/memory.svg)
 - [Source별 prompt tokens](charts/prompt-tokens-by-source.svg)
 
-이 문서는 해당 설정의 원시 요청과 1초 metric 시계열에서 자동 생성한 사실표다. baseline과의 before/after 및 개선·악화 원인은 [`{analysis_report}`](../../../{analysis_report})에서 교차 분석한다.
+이 문서는 해당 설정의 원시 요청과 1초 metric 시계열에서 자동 생성한 사실표다. 비교 설정 측정이 모두 끝난 뒤 [동일 결과 루트의 종합 비교]({comparison_link})에서 baseline 대비 직접 효과를 교차 분석한다.
 """
         (input_dir / "REPORT.md").write_text(report, encoding="utf-8")
         return
@@ -508,9 +565,9 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 ## 결론 요약
 
 - 고정된 100개 요청을 동시성 `{', '.join(str(row['concurrency']) for row in rows)}`에서 각각 한 번씩 실행하여 총 `{sum(row['requests'] for row in rows)}`건을 측정했다.
-- nominal 최고 output throughput은 동시성 `{best['concurrency']}`의 `{best['output_token_throughput_tps']:.2f} token/s`였지만, C=20의 `{c20['output_token_throughput_tps']:.2f} token/s`보다 `{throughput_gain_after_c20:.2f}%` 높은 수준에 불과하다. 실용적 처리량 포화점은 C=20이다.
+- nominal 최고 output throughput은 동시성 `{best['concurrency']}`의 `{best['output_token_throughput_tps']:.2f} token/s`다. 최고값의 95%에 처음 도달한 실용적 처리량 포화점은 C=`{saturation['concurrency']}`이고, 이후 추가 이득은 최대 `{throughput_gain_after_saturation:.2f}%`다.
 - 동시성 `{first['concurrency']} → {last['concurrency']}`에서 E2E p95는 `{ratio(last['e2e_seconds_p95'], first['e2e_seconds_p95'])}`, TTFT p95는 `{ratio(last['ttft_seconds_p95'], first['ttft_seconds_p95'])}`, TPOT p95는 `{ratio(last['tpot_ms_p95'], first['tpot_ms_p95'])}`가 됐다.
-- C=1→20에서 output throughput은 `{c1_to_c20_throughput:.2f}×`가 됐지만, C=20→100에서 E2E p95는 추가로 `{c20_to_last_e2e_p95:.2f}×` 악화됐다.
+- C=1→`{saturation['concurrency']}`에서 output throughput은 `{c1_to_saturation_throughput:.2f}×`가 됐고, 포화점→C=`{last['concurrency']}`에서 E2E p95는 `{saturation_to_last_e2e_p95:.2f}×`가 됐다.
 - 최초로 scheduler waiting이 관찰된 동시성은 `{first_wait['concurrency'] if first_wait else '없음'}`이다. 전체 prefix cache hit 증가량은 `{total_prefix_hits:.0f}`, preemption 증가량은 `{total_preemptions:.0f}`, Pod OOM kill 증가량은 `{total_oom:.0f}`이다.
 
 ## 실험 조건
@@ -551,15 +608,15 @@ def write_report(input_dir: Path, rows: list[dict], manifest: dict) -> None:
 
 E2E는 사용자가 기다린 전체 시간이다. TTFT는 scheduler 대기와 prefill 영향을 크게 받고, TPOT는 첫 token 이후 decode 진행 속도를 보여준다. 따라서 동시성 증가 시 TTFT와 waiting이 함께 상승하고 TPOT는 상대적으로 덜 변하면 큐 대기가 주원인이다. 반대로 TPOT도 크게 악화되면 동시 batch 간 CPU 연산 경쟁 또는 memory bandwidth 영향을 의심할 수 있다.
 
-Peak KV가 높으면서 waiting/preemption이 발생하면 512MiB KV 예산도 병목에 기여한다. 다만 이 실험에서 KV를 없애는 것은 올바른 비교가 아니다. autoregressive decoding에 필요한 요청 내부 KV는 유지하고, 요청 간 재사용 기능인 Automatic Prefix Caching만 껐다. 실제 결과의 prefix hit 증가량 `{total_prefix_hits:.0f}`으로 이 통제를 확인했다.
+Peak KV가 높으면서 waiting/preemption이 발생하면 `{kv_mib:.0f}MiB` KV 예산도 병목에 기여할 수 있다. 다만 이 실험에서 KV를 없애는 것은 올바른 비교가 아니다. autoregressive decoding에 필요한 요청 내부 KV는 유지하고, 요청 간 재사용 기능인 Automatic Prefix Caching만 껐다. 실제 결과의 prefix hit 증가량 `{total_prefix_hits:.0f}`으로 이 통제를 확인했다.
 
 ## 개선·악화 원인 분석
 
-동시성이 1에서 20으로 증가할 때 CPU가 여러 sequence를 batch로 처리하면서 output throughput이 `{first['output_token_throughput_tps']:.2f} → {c20['output_token_throughput_tps']:.2f} token/s`로 개선됐다. 반면 평균 Pod CPU는 모든 단계에서 대체로 6-core limit 근처였으므로, 동시성을 더 높인다고 CPU 계산 자원이 늘어나는 것은 아니다.
+동시성이 1에서 포화점 C=`{saturation['concurrency']}`까지 증가할 때 batching으로 output throughput이 `{first['output_token_throughput_tps']:.2f} → {saturation['output_token_throughput_tps']:.2f} token/s`로 변했다. 관측된 최대 평균 Pod CPU는 `{max_average_cpu:.2f}` cores이고 container CPU limit은 `{cpu_limit}` cores이므로, 포화점 이후 동시성 증가는 CPU quota 자체를 늘리지 않는다.
 
-C=20에서 peak running은 `{c20['peak_running_requests']:.0f}`, waiting은 `{c20['peak_waiting_requests']:.0f}`, KV는 `{c20['peak_kv_cache_percent']:.0f}%`였다. 512MiB KV가 가득 차면서 configured `max-num-seqs=20`에 도달하기 전에 active running이 16에서 제한됐다. C=50과 100에서는 peak running이 계속 16인 반면 peak waiting만 `{row_by_concurrency.get(50, last)['peak_waiting_requests']:.0f}`와 `{last['peak_waiting_requests']:.0f}`로 증가했다. 그래서 output throughput은 거의 그대로지만 TTFT와 E2E tail이 크게 악화됐다.
+포화점 C=`{saturation['concurrency']}`에서 peak running/waiting/KV는 `{saturation['peak_running_requests']:.0f}/{saturation['peak_waiting_requests']:.0f}/{saturation['peak_kv_cache_percent']:.1f}%`였다. 설정값은 KV `{kv_mib:.0f}MiB`, `max-num-seqs={max_num_seqs}`다. C=50과 C=100의 peak running/waiting은 각각 `{row_by_concurrency.get(50, last)['peak_running_requests']:.0f}/{row_by_concurrency.get(50, last)['peak_waiting_requests']:.0f}`, `{last['peak_running_requests']:.0f}/{last['peak_waiting_requests']:.0f}`였다. 처리량이 거의 늘지 않는데 waiting과 TTFT/E2E가 증가한다면 추가 요청은 service rate를 높이기보다 queue를 키운 것으로 해석한다.
 
-C=50/100의 TPOT p50이 C=20보다 약간 낮아진 것은 추가 요청이 decode batch에 무한히 들어간 결과가 아니다. 초과 요청은 first token 전에 queue에서 기다리고, 실제 decode 동시성은 KV capacity가 제한하기 때문이다. 대기 비용은 TPOT보다 TTFT에 주로 나타난다. 전체 preemption `{total_preemptions:.0f}`회는 KV 100% 구간에서 일부 request state를 재계산했음을 뜻한다.
+TTFT는 first token 전 queue·prefill 시간을, TPOT는 first token 이후 decode 진행을 주로 반영한다. 따라서 waiting과 TTFT가 함께 증가하고 TPOT 변화가 더 작으면 대기 비용이 중심인 패턴이다. 전체 preemption 증가량은 `{total_preemptions:.0f}`이며, 0보다 클 때만 KV pressure에 따른 recompute 가능성을 함께 고려한다.
 
 Peak Pod memory는 최대 `{max(row['peak_pod_memory_gib'] for row in rows):.2f}GiB`였고 OOM kill은 `{total_oom:.0f}`회였다. 따라서 높은 latency의 원인은 Pod OOM/restart가 아니라 고정 CPU capacity, KV 포화, scheduler queue로 해석할 수 있다.
 

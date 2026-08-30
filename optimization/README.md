@@ -108,7 +108,7 @@ benchmark/results/
     └── charts/
 ```
 
-FP8 KV 실패 상세는 [`03_FAILED_OPTIMIZATION_FP8_KV.md`](../reports/results/03_FAILED_OPTIMIZATION_FP8_KV.md), 전체 before/after와 최종 판단은 [`final_report.md`](../reports/final_report.md)에 정리합니다.
+이전 ARM64 FP8 KV 실패는 [`03_FAILED_OPTIMIZATION_FP8_KV.md`](../reports/results/03_FAILED_OPTIMIZATION_FP8_KV.md), 해당 실행의 전체 before/after는 [`07_FINAL_COMPREHENSIVE_ANALYSIS.md`](../reports/results/07_FINAL_COMPREHENSIVE_ANALYSIS.md)에 보존합니다. 현재 최종 판단은 [`final_report.md`](../reports/final_report.md)를 봅니다.
 
 ## 근거 문서
 
@@ -192,7 +192,7 @@ capacity bundle 실행은 MTP 단독보다 output throughput이 17.3% 높고 E2E
 
 MTP2의 약 75~77% acceptance는 낮은 동시성의 decode를 크게 개선했다. 그러나 512MiB KV에서 active running이 5로 제한돼 C≥20 총 처리량은 baseline보다 낮았다. 768MiB KV와 `max-num-seqs=24`를 함께 적용한 bundle에서는 running 8과 waiting 3개 감소가 관측됐지만, 6-core CPU에서 batch 경쟁이 커지며 MTP 단독 대비 C=10~100 TPOT p95가 46.8~76.7% 악화됐다. 이 결과는 capacity bundle 전체의 관측 차이이며 KV 또는 sequence 상한 하나의 단독 효과가 아니다. 따라서 저동시성에는 MTP2, 지속적인 C≥10 처리량에는 baseline이 이 장비의 더 나은 선택이며 768MiB/24-seq 결합 설정은 범용 기본값으로 채택하지 않는다.
 
-자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 전체 해석·최종 권고·GPU production 전환 분석은 [`final_report.md`](../reports/final_report.md)에 있다.
+이전 자동 수치표와 그래프는 [`benchmark/results/comparison`](../benchmark/results/comparison/), 상세 해석은 [`07_FINAL_COMPREHENSIVE_ANALYSIS.md`](../reports/results/07_FINAL_COMPREHENSIVE_ANALYSIS.md)에 보존한다. 현재 최종 권고는 [`final_report.md`](../reports/final_report.md)를 기준으로 한다.
 
 이후 baseline에서 CPU limit만 `6 → 8`로 바꾼 독립 실험은 [`optimization/cpu8/README.md`](cpu8/README.md)와 [`reports/results/05_BASELINE_CPU8_ANALYSIS.md`](../reports/results/05_BASELINE_CPU8_ANALYSIS.md)에 분리했다.
 

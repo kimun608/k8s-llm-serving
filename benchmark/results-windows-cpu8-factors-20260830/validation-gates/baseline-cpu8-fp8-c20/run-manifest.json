@@ -1,0 +1,323 @@
+{
+  "base_url": "http://127.0.0.1:18000",
+  "concurrencies": [
+    20
+  ],
+  "config": {
+    "concurrencies": [
+      1,
+      2,
+      5,
+      10,
+      20,
+      50,
+      100
+    ],
+    "cooldown_seconds": 3,
+    "experiment": "baseline-cpu8-fp8",
+    "ignore_eos": true,
+    "local_port": 18000,
+    "max_tokens": 64,
+    "metrics_interval_seconds": 1.0,
+    "model": "qwen3.5-0.8b",
+    "namespace": "llm-serving",
+    "request_count": 100,
+    "request_timeout_seconds": 1200,
+    "seed": 20260828,
+    "service": "vllm-cpu",
+    "system_prompt": "You are serving a deterministic performance benchmark. Follow the user request accurately and answer concisely. Do not add greetings, disclaimers, or unrelated explanation. The response content is not quality-scored in this experiment; consistent inference work and reproducible token timing are the objective.",
+    "temperature": 0.0,
+    "warmup_max_tokens": 8,
+    "warmup_requests": 3
+  },
+  "config_sha256": "94d35c47187f49ef338a6cda87efd6f12644f3f155fce0b5362f641d11a0517e",
+  "endpoint_binding": "local-kubernetes-service",
+  "environment": {
+    "docker": {
+      "architecture": "x86_64",
+      "cpus": 16,
+      "memory_bytes": 16586010624,
+      "operating_system": "Docker Desktop",
+      "server_version": "29.7.2"
+    },
+    "git": {
+      "commit": "0ce873c6357f2a1813432c54b6a580c5cd1742f3",
+      "status_porcelain": "M .gitignore\n M Makefile\n M README.md\n M benchmark/README.md\n M benchmark/results/comparison-all/REPORT.md\n M benchmark/results/comparison-all/comparison.csv\n M benchmark/scripts/analyze.py\n M benchmark/scripts/compare_all_variants.py\n M benchmark/scripts/run_benchmark.py\n M k8s/README.md\n M k8s/kind/cluster.yaml\n M model_serving/Dockerfile\n M model_serving/README.md\n M model_serving/k8s/base/deployment.yaml\n M reports/results/README.md\n?? .gitattributes\n?? benchmark/config/baseline-cpu8-fp8.json\n?? benchmark/config/baseline-kv768-cpu8.json\n?? benchmark/config/baseline-kv768-fp8-cpu8.json\n?? benchmark/config/mtp-kv768-fp8-cpu8.json\n?? benchmark/results-windows-amd64-20260830/\n?? benchmark/results-windows-cpu8-factors-20260830/\n?? benchmark/results-windows-sequential-20260830/\n?? benchmark/scripts/compare_windows_cpu8_factors.py\n?? benchmark/scripts/compare_windows_sequential.py\n?? benchmark/scripts/run-windows-suite.ps1\n?? k8s/scripts/install-kind.ps1\n?? k8s/scripts/install-kubectl.ps1\n?? k8s/scripts/verify-cluster.ps1\n?? model_serving/k8s/components/\n?? model_serving/k8s/overlays/baseline-cpu8-fp8/\n?? model_serving/k8s/overlays/baseline-kv768-cpu8/\n?? model_serving/k8s/overlays/baseline-kv768-fp8-cpu8/\n?? model_serving/k8s/overlays/mtp-kv768-fp8-cpu8/\n?? model_serving/k8s/overlays/windows/\n?? model_serving/scripts/preflight.ps1\n?? model_serving/scripts/smoke-test.ps1\n?? model_serving/scripts/status.ps1\n?? project.ps1\n?? reports/final_report_windows_amd64_20260830.md"
+    },
+    "host": {
+      "cpu_brand": "AMD Ryzen 7 7800X3D 8-Core Processor",
+      "logical_cpu": "16",
+      "machine": "AMD64",
+      "memory_bytes": "33993793536",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.13.15"
+    },
+    "kubernetes": {
+      "container": {
+        "args": [
+          "/models/qwen3.5-0.8b",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8000",
+          "--served-model-name",
+          "qwen3.5-0.8b",
+          "--dtype",
+          "bfloat16",
+          "--language-model-only",
+          "--max-model-len",
+          "2048",
+          "--max-num-seqs",
+          "20",
+          "--max-num-batched-tokens",
+          "2048",
+          "--kv-cache-memory-bytes",
+          "536870912",
+          "--no-enable-prefix-caching",
+          "--kv-cache-dtype",
+          "fp8",
+          "--calculate-kv-scales"
+        ],
+        "env": [
+          {
+            "name": "HF_HUB_OFFLINE",
+            "value": "1"
+          },
+          {
+            "name": "TRANSFORMERS_OFFLINE",
+            "value": "1"
+          },
+          {
+            "name": "TOKENIZERS_PARALLELISM",
+            "value": "false"
+          },
+          {
+            "name": "PYTHONUNBUFFERED",
+            "value": "1"
+          }
+        ],
+        "image": "local/vllm-cpu:qwen3.5-0.8b-vllm0.26.0",
+        "resources": {
+          "limits": {
+            "cpu": "8",
+            "memory": "8Gi"
+          },
+          "requests": {
+            "cpu": "4",
+            "memory": "4Gi"
+          }
+        }
+      },
+      "deployment_generation": 25,
+      "nodes": [
+        {
+          "architecture": "amd64",
+          "capacity": {
+            "cpu": "16",
+            "ephemeral-storage": "1055762868Ki",
+            "hugepages-1Gi": "0",
+            "hugepages-2Mi": "0",
+            "memory": "16197276Ki",
+            "pods": "110"
+          },
+          "container_runtime": "containerd://2.2.0",
+          "kubelet_version": "v1.32.11",
+          "name": "project-process-control-plane"
+        },
+        {
+          "architecture": "amd64",
+          "capacity": {
+            "cpu": "16",
+            "ephemeral-storage": "1055762868Ki",
+            "hugepages-1Gi": "0",
+            "hugepages-2Mi": "0",
+            "memory": "16197276Ki",
+            "pods": "110"
+          },
+          "container_runtime": "containerd://2.2.0",
+          "kubelet_version": "v1.32.11",
+          "name": "project-process-worker"
+        }
+      ],
+      "pods": [
+        {
+          "image_id": "sha256:24425e15907392db6807ed9af9a73c67ca054d5aeacfd0e6e14b59795d71b6be",
+          "name": "vllm-cpu-679646bdbb-pvghj",
+          "node": "project-process-worker",
+          "phase": "Running",
+          "restart_count": 0,
+          "uid": "9faa2d07-c271-4113-926a-305bc00264c0"
+        }
+      ],
+      "serving_variant": "baseline-cpu8-fp8"
+    },
+    "serving_metadata_scope": "local-kubernetes"
+  },
+  "finished_at_utc": "2026-08-30T03:43:09.950889+00:00",
+  "input_token_validation": {
+    "counts_by_prompt_id": {
+      "gsm8k-01": 151,
+      "gsm8k-02": 196,
+      "gsm8k-03": 193,
+      "gsm8k-04": 174,
+      "gsm8k-05": 174,
+      "humaneval-01": 254,
+      "humaneval-02": 203,
+      "humaneval-03": 298,
+      "humaneval-04": 237,
+      "humaneval-05": 198,
+      "longbench_qasper-01": 436,
+      "longbench_qasper-02": 551,
+      "longbench_qasper-03": 690,
+      "longbench_qasper-04": 855,
+      "longbench_qasper-05": 932,
+      "truthfulqa-01": 133,
+      "truthfulqa-02": 107,
+      "truthfulqa-03": 109,
+      "truthfulqa-04": 108,
+      "truthfulqa-05": 121
+    },
+    "maximum": 932,
+    "mean": 306.0,
+    "minimum": 107
+  },
+  "model_endpoint": {
+    "data": [
+      {
+        "created": 1788061369,
+        "id": "qwen3.5-0.8b",
+        "max_model_len": 2048,
+        "object": "model",
+        "owned_by": "vllm",
+        "parent": null,
+        "permission": [
+          {
+            "allow_create_engine": false,
+            "allow_fine_tuning": false,
+            "allow_logprobs": true,
+            "allow_sampling": true,
+            "allow_search_indices": false,
+            "allow_view": true,
+            "created": 1788061369,
+            "group": null,
+            "id": "modelperm-bae9302f79752022",
+            "is_blocking": false,
+            "object": "model_permission",
+            "organization": "*"
+          }
+        ],
+        "root": "/models/qwen3.5-0.8b"
+      }
+    ],
+    "object": "list"
+  },
+  "phases": [
+    {
+      "cgroup_memory_event_deltas": {
+        "max": 0.0,
+        "oom": 0.0,
+        "oom_kill": 0.0
+      },
+      "concurrency": 20,
+      "duration_seconds": 13.732880299998214,
+      "failure_count": 0,
+      "finished_at_utc": "2026-08-30T03:43:09.866996+00:00",
+      "kubernetes_pods_after": [
+        {
+          "image_id": "sha256:24425e15907392db6807ed9af9a73c67ca054d5aeacfd0e6e14b59795d71b6be",
+          "name": "vllm-cpu-679646bdbb-pvghj",
+          "node": "project-process-worker",
+          "phase": "Running",
+          "restart_count": 0,
+          "uid": "9faa2d07-c271-4113-926a-305bc00264c0"
+        }
+      ],
+      "memory_pressure_warnings": [],
+      "metrics_file": "raw/server-metrics-c20.csv",
+      "metrics_sample_count": 13,
+      "metrics_scrape_errors": [],
+      "request_count": 20,
+      "requests_file": "raw/requests-c20.jsonl",
+      "runtime_validation_errors": [],
+      "started_at_utc": "2026-08-30T03:42:56.134278+00:00",
+      "success_count": 20,
+      "warmup_request_count": 3,
+      "warmup_results": [
+        {
+          "completion_tokens": 8,
+          "concurrency": 20,
+          "content_chars": 8,
+          "content_chunks": 8,
+          "content_sha256": "c6f8e740f39178a88b2ba0ddd97a367784dce01919680db66ae3cf10304cc05a",
+          "e2e_seconds": 0.9498811000012211,
+          "error": null,
+          "finish_reason": "length",
+          "first_to_last_content_seconds": 0.7360962000020663,
+          "prompt_id": "gsm8k-01",
+          "prompt_tokens": 151,
+          "sequence": 0,
+          "source": "gsm8k",
+          "started_at_utc": "2026-08-30T03:42:51.984010+00:00",
+          "status": "success",
+          "total_tokens": 159,
+          "tpot_seconds": 0.10517740000068443,
+          "ttft_seconds": 0.21363929999643005,
+          "warmup": true
+        },
+        {
+          "completion_tokens": 8,
+          "concurrency": 20,
+          "content_chars": 25,
+          "content_chunks": 8,
+          "content_sha256": "197c564a7e2d4f18966a67ffda74e78cb5ebcbc49fc2fe57f91788fd02cd21a2",
+          "e2e_seconds": 0.9910832999958075,
+          "error": null,
+          "finish_reason": "length",
+          "first_to_last_content_seconds": 0.30047059999924386,
+          "prompt_id": "humaneval-01",
+          "prompt_tokens": 254,
+          "sequence": 1,
+          "source": "humaneval",
+          "started_at_utc": "2026-08-30T03:42:51.984226+00:00",
+          "status": "success",
+          "total_tokens": 262,
+          "tpot_seconds": 0.042937814285063984,
+          "ttft_seconds": 0.6905186000003596,
+          "warmup": true
+        },
+        {
+          "completion_tokens": 8,
+          "concurrency": 20,
+          "content_chars": 24,
+          "content_chunks": 5,
+          "content_sha256": "e04fd6e30e75788b07ffda47fe682f01cbe623df00697668a11e35ea35a1ca9c",
+          "e2e_seconds": 0.9908059000008507,
+          "error": null,
+          "finish_reason": "length",
+          "first_to_last_content_seconds": 0.30046069999661995,
+          "prompt_id": "truthfulqa-01",
+          "prompt_tokens": 133,
+          "sequence": 2,
+          "source": "truthfulqa",
+          "started_at_utc": "2026-08-30T03:42:51.984447+00:00",
+          "status": "success",
+          "total_tokens": 141,
+          "tpot_seconds": 0.04293924285697618,
+          "ttft_seconds": 0.6902312000020174,
+          "warmup": true
+        }
+      ]
+    }
+  ],
+  "prompt_count": 20,
+  "prompts_file": "E:\\개발\\Project\\k8s-llm-serving\\benchmark\\data\\prompts.jsonl",
+  "prompts_sha256": "0a16c94dc0a03f7ba675697df50009fe04ed69407b788c2be99526446f8701fc",
+  "runner_sha256": "fb4e18e79c5542e7c0d11b58907f9f5f0c0aea9cf9dbd3f18acd81b02bc2f248",
+  "schema_version": 1,
+  "server_version": {
+    "version": "0.26.0"
+  },
+  "started_at_utc": "2026-08-30T03:42:51.980542+00:00",
+  "status": "completed",
+  "total_failures": 0
+}

@@ -19,13 +19,13 @@ k8s/
 ## 클러스터 토폴로지
 
 ```text
-Docker Desktop Linux/ARM64
+Docker Desktop Linux (macOS ARM64 또는 Windows AMD64)
 └── Docker network: kind
-    ├── project-process-control-plane (172.18.0.3)
+    ├── project-process-control-plane (dynamic Kind-network IP)
     │   ├── kube-apiserver
     │   ├── scheduler/controller-manager
     │   └── containerd: vLLM image loaded
-    └── project-process-worker (172.18.0.2)
+    └── project-process-worker (dynamic Kind-network IP)
         ├── kubelet + kube-proxy + Kind CNI
         ├── containerd: vLLM image loaded
         └── vLLM Pod scheduled here
@@ -51,7 +51,7 @@ control-plane과 worker는 서로 다른 Docker 컨테이너지만 동일한 `ki
 
 ## 1. Kind 설치
 
-프로젝트 루트에서 실행합니다.
+macOS에서는 프로젝트 루트에서 실행합니다.
 
 ```bash
 make install-kind
@@ -59,10 +59,23 @@ make install-kind
 
 시스템 디렉터리를 변경하지 않고 `bin/kind`에 Darwin/ARM64 바이너리를 설치하고 공식 SHA-256 checksum을 검증합니다.
 
+Windows PowerShell에서는 다음 명령이 Windows/AMD64 Kind와 클러스터 버전에 맞춘 kubectl을 `bin/`에 설치하고 공식 SHA-256 checksum을 검증합니다.
+
+```powershell
+.\project.ps1 install-kind
+.\project.ps1 install-kubectl
+```
+
 ## 2. 클러스터 생성
 
 ```bash
 make cluster
+```
+
+Windows PowerShell:
+
+```powershell
+.\project.ps1 cluster
 ```
 
 직접 실행할 경우:
@@ -84,6 +97,13 @@ make image
 make load
 ```
 
+Windows PowerShell:
+
+```powershell
+.\project.ps1 image
+.\project.ps1 load
+```
+
 동등한 직접 명령:
 
 ```bash
@@ -96,6 +116,12 @@ bin/kind load docker-image \
 
 ```bash
 make verify-cluster
+```
+
+Windows PowerShell:
+
+```powershell
+.\project.ps1 verify-cluster
 ```
 
 이 명령은 다음을 모두 확인합니다.
@@ -117,11 +143,13 @@ docker exec project-process-worker crictl images local/vllm-cpu
 
 - `project-process-control-plane`: `Ready`, role `control-plane`
 - `project-process-worker`: `Ready`, role `worker`
-- worker에 `node-role.kubernetes.io/worker` 라벨 존재
+- worker에 `llm-serving.local/worker=true` 라벨 존재
 - 두 노드에 동일한 vLLM image ID 존재
 - worker에서 `kindnet`과 `kube-proxy` Pod 실행
 
 ## 실제 측정 결과
+
+아래 값은 기존 Apple M4/ARM64 실행 기록입니다. Windows/AMD64에서는 주소, image ID, 크기와 시간이 달라질 수 있습니다.
 
 | 항목 | 결과 |
 |---|---|
@@ -137,5 +165,7 @@ docker exec project-process-worker crictl images local/vllm-cpu
 ```bash
 make clean-cluster
 ```
+
+Windows PowerShell에서는 `.\project.ps1 clean-cluster`를 사용합니다.
 
 Docker에 빌드된 모델 이미지는 유지합니다.

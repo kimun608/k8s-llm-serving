@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520">
+<rect width="100%" height="100%" fill="white"/>
+<text x="460.0" y="32" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">E2E latency vs concurrency</text>
+<line x1="90" y1="445.00" x2="885" y2="445.00" stroke="#e5e7eb"/>
+<text x="78" y="449.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0.00</text>
+<line x1="90" y1="370.00" x2="885" y2="370.00" stroke="#e5e7eb"/>
+<text x="78" y="374.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">20.00</text>
+<line x1="90" y1="295.00" x2="885" y2="295.00" stroke="#e5e7eb"/>
+<text x="78" y="299.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">40.00</text>
+<line x1="90" y1="220.00" x2="885" y2="220.00" stroke="#e5e7eb"/>
+<text x="78" y="224.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">60.00</text>
+<line x1="90" y1="145.00" x2="885" y2="145.00" stroke="#e5e7eb"/>
+<text x="78" y="149.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">80.00</text>
+<line x1="90" y1="70.00" x2="885" y2="70.00" stroke="#e5e7eb"/>
+<text x="78" y="74.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">100.00</text>
+<line x1="90.00" y1="70" x2="90.00" y2="445" stroke="#f3f4f6"/>
+<text x="90.00" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">1</text>
+<line x1="98.03" y1="70" x2="98.03" y2="445" stroke="#f3f4f6"/>
+<text x="98.03" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">2</text>
+<line x1="122.12" y1="70" x2="122.12" y2="445" stroke="#f3f4f6"/>
+<text x="122.12" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">5</text>
+<line x1="162.27" y1="70" x2="162.27" y2="445" stroke="#f3f4f6"/>
+<text x="162.27" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">10</text>
+<line x1="242.58" y1="70" x2="242.58" y2="445" stroke="#f3f4f6"/>
+<text x="242.58" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="483.48" y1="70" x2="483.48" y2="445" stroke="#f3f4f6"/>
+<text x="483.48" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">50</text>
+<line x1="885.00" y1="70" x2="885.00" y2="445" stroke="#f3f4f6"/>
+<text x="885.00" y="470" text-anchor="middle" font-size="13" font-family="sans-serif">100</text>
+<line x1="90" y1="70" x2="90" y2="445" stroke="#111827"/>
+<line x1="90" y1="445" x2="885" y2="445" stroke="#111827"/>
+<text x="487.5" y="500" text-anchor="middle" font-size="14" font-family="sans-serif">Concurrency</text>
+<text transform="translate(22 257.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Seconds / request</text>
+<polyline points="90.00,437.71 98.03,435.40 122.12,428.85 162.27,415.63 242.58,387.82 483.48,307.44 885.00,287.30" fill="none" stroke="#2563eb" stroke-width="3"/>
+<circle cx="90.00" cy="437.71" r="4" fill="#2563eb"/>
+<circle cx="98.03" cy="435.40" r="4" fill="#2563eb"/>
+<circle cx="122.12" cy="428.85" r="4" fill="#2563eb"/>
+<circle cx="162.27" cy="415.63" r="4" fill="#2563eb"/>
+<circle cx="242.58" cy="387.82" r="4" fill="#2563eb"/>
+<circle cx="483.48" cy="307.44" r="4" fill="#2563eb"/>
+<circle cx="885.00" cy="287.30" r="4" fill="#2563eb"/>
+<line x1="102" y1="52" x2="126" y2="52" stroke="#2563eb" stroke-width="3"/>
+<text x="132" y="56" font-size="13" font-family="sans-serif">p50</text>
+<polyline points="90.00,434.21 98.03,431.12 122.12,423.34 162.27,408.47 242.58,376.81 483.48,293.54 885.00,159.68" fill="none" stroke="#dc2626" stroke-width="3"/>
+<circle cx="90.00" cy="434.21" r="4" fill="#dc2626"/>
+<circle cx="98.03" cy="431.12" r="4" fill="#dc2626"/>
+<circle cx="122.12" cy="423.34" r="4" fill="#dc2626"/>
+<circle cx="162.27" cy="408.47" r="4" fill="#dc2626"/>
+<circle cx="242.58" cy="376.81" r="4" fill="#dc2626"/>
+<circle cx="483.48" cy="293.54" r="4" fill="#dc2626"/>
+<circle cx="885.00" cy="159.68" r="4" fill="#dc2626"/>
+<line x1="292" y1="52" x2="316" y2="52" stroke="#dc2626" stroke-width="3"/>
+<text x="322" y="56" font-size="13" font-family="sans-serif">p95</text>
+<polyline points="90.00,432.94 98.03,430.14 122.12,421.07 162.27,404.13 242.58,375.14 483.48,287.59 885.00,156.62" fill="none" stroke="#059669" stroke-width="3"/>
+<circle cx="90.00" cy="432.94" r="4" fill="#059669"/>
+<circle cx="98.03" cy="430.14" r="4" fill="#059669"/>
+<circle cx="122.12" cy="421.07" r="4" fill="#059669"/>
+<circle cx="162.27" cy="404.13" r="4" fill="#059669"/>
+<circle cx="242.58" cy="375.14" r="4" fill="#059669"/>
+<circle cx="483.48" cy="287.59" r="4" fill="#059669"/>
+<circle cx="885.00" cy="156.62" r="4" fill="#059669"/>
+<line x1="482" y1="52" x2="506" y2="52" stroke="#059669" stroke-width="3"/>
+<text x="512" y="56" font-size="13" font-family="sans-serif">p99</text>
+</svg>

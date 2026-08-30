@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="520" viewBox="0 0 920 520">
+<rect width="100%" height="100%" fill="white"/>
+<text x="460.0" y="32" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">Average input tokens by benchmark source</text>
+<line x1="90" y1="420.00" x2="885" y2="420.00" stroke="#e5e7eb"/>
+<text x="78" y="424.00" text-anchor="end" font-size="12" font-family="sans-serif">0.0</text>
+<line x1="90" y1="349.00" x2="885" y2="349.00" stroke="#e5e7eb"/>
+<text x="78" y="353.00" text-anchor="end" font-size="12" font-family="sans-serif">200.0</text>
+<line x1="90" y1="278.00" x2="885" y2="278.00" stroke="#e5e7eb"/>
+<text x="78" y="282.00" text-anchor="end" font-size="12" font-family="sans-serif">400.0</text>
+<line x1="90" y1="207.00" x2="885" y2="207.00" stroke="#e5e7eb"/>
+<text x="78" y="211.00" text-anchor="end" font-size="12" font-family="sans-serif">600.0</text>
+<line x1="90" y1="136.00" x2="885" y2="136.00" stroke="#e5e7eb"/>
+<text x="78" y="140.00" text-anchor="end" font-size="12" font-family="sans-serif">800.0</text>
+<line x1="90" y1="65.00" x2="885" y2="65.00" stroke="#e5e7eb"/>
+<text x="78" y="69.00" text-anchor="end" font-size="12" font-family="sans-serif">1000.0</text>
+<rect x="127.76" y="362.26" width="123.22" height="57.74" fill="#2563eb" rx="3"/>
+<text x="189.38" y="354.26" text-anchor="middle" font-size="12" font-family="sans-serif">162.6</text>
+<text x="189.38" y="445" text-anchor="middle" font-size="12" font-family="sans-serif">gsm8k</text>
+<rect x="326.51" y="343.79" width="123.22" height="76.21" fill="#dc2626" rx="3"/>
+<text x="388.12" y="335.79" text-anchor="middle" font-size="12" font-family="sans-serif">214.7</text>
+<text x="388.12" y="445" text-anchor="middle" font-size="12" font-family="sans-serif">humaneval</text>
+<rect x="525.26" y="171.02" width="123.22" height="248.98" fill="#059669" rx="3"/>
+<text x="586.88" y="163.02" text-anchor="middle" font-size="12" font-family="sans-serif">701.4</text>
+<text x="586.88" y="445" text-anchor="middle" font-size="12" font-family="sans-serif">longbench_qasper</text>
+<rect x="724.01" y="379.90" width="123.22" height="40.10" fill="#7c3aed" rx="3"/>
+<text x="785.62" y="371.90" text-anchor="middle" font-size="12" font-family="sans-serif">113.0</text>
+<text x="785.62" y="445" text-anchor="middle" font-size="12" font-family="sans-serif">truthfulqa</text>
+<line x1="90" y1="65" x2="90" y2="420" stroke="#111827"/>
+<line x1="90" y1="420" x2="885" y2="420" stroke="#111827"/>
+<text transform="translate(22 242.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Prompt tokens</text>
+</svg>

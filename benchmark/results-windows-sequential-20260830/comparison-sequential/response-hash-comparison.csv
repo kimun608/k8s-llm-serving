@@ -1,0 +1,29 @@
+stage_order,previous_stage,stage,changed_factor,concurrency,requests,exact_hash_matches,exact_hash_mismatches,exact_hash_match_percent
+1,baseline,baseline-cpu8,CPU limit 6→8,1,100,100,0,100.000000
+1,baseline,baseline-cpu8,CPU limit 6→8,2,100,100,0,100.000000
+1,baseline,baseline-cpu8,CPU limit 6→8,5,100,84,16,84.000000
+1,baseline,baseline-cpu8,CPU limit 6→8,10,100,87,13,87.000000
+1,baseline,baseline-cpu8,CPU limit 6→8,20,100,85,15,85.000000
+1,baseline,baseline-cpu8,CPU limit 6→8,50,100,87,13,87.000000
+1,baseline,baseline-cpu8,CPU limit 6→8,100,100,84,16,84.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,1,100,82,18,82.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,2,100,74,26,74.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,5,100,72,28,72.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,10,100,74,26,74.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,20,100,71,29,71.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,50,100,70,30,70.000000
+2,baseline-cpu8,mtp-cpu8,MTP off→MTP2,100,100,72,28,72.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,1,100,100,0,100.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,2,100,100,0,100.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,5,100,96,4,96.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,10,100,96,4,96.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,20,100,93,7,93.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,50,100,92,8,92.000000
+3,mtp-cpu8,mtp-kv768-cpu8,KV budget 512→768MiB,100,100,93,7,93.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,1,100,15,85,15.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,2,100,30,70,30.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,5,100,35,65,35.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,10,100,33,67,33.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,20,100,36,64,36.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,50,100,33,67,33.000000
+4,mtp-kv768-cpu8,mtp-kv768-fp8-cpu8,KV dtype auto/BF16→FP8,100,100,33,67,33.000000

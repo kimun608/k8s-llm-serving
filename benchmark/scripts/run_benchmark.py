@@ -12,7 +12,6 @@ import json
 import math
 import os
 import platform
-import signal
 import shutil
 import subprocess
 import sys
@@ -58,7 +57,15 @@ def sha256_file(path: Path) -> str:
 
 def run_text(command: list[str], timeout: float = 30) -> str | None:
     try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
         return result.stdout.strip()
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
@@ -107,13 +114,30 @@ def model_signature(model_info: Any) -> list[dict[str, Any]]:
     return sorted(signature, key=lambda item: str(item.get("id")))
 
 
-def wait_healthy(base_url: str, timeout_seconds: float = 60) -> None:
+def wait_healthy(
+    base_url: str,
+    timeout_seconds: float = 60,
+    *,
+    port_forward: subprocess.Popen | None = None,
+    port_forward_log: Path | None = None,
+) -> None:
     deadline = time.monotonic() + timeout_seconds
     last_error: Exception | None = None
     while time.monotonic() < deadline:
+        if port_forward is not None and port_forward.poll() is not None:
+            log_text = ""
+            if port_forward_log is not None and port_forward_log.exists():
+                log_text = port_forward_log.read_text(encoding="utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"kubectl port-forward exited with code {port_forward.returncode}: {log_text}"
+            )
         try:
             http_bytes(f"{base_url}/health", timeout=2)
-            return
+            if port_forward_log is None:
+                return
+            log_text = port_forward_log.read_text(encoding="utf-8", errors="replace")
+            if "Forwarding from " in log_text:
+                return
         except Exception as error:  # noqa: BLE001 - report the final connection error
             last_error = error
             time.sleep(0.25)
@@ -132,22 +156,33 @@ class PortForward:
     def __enter__(self) -> str:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self.log_handle = self.log_path.open("w", encoding="utf-8")
-        self.process = subprocess.Popen(
-            [
-                "kubectl",
-                "-n",
-                self.namespace,
-                "port-forward",
-                f"service/{self.service}",
-                f"{self.local_port}:8000",
-            ],
-            stdout=self.log_handle,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        try:
+            self.process = subprocess.Popen(
+                [
+                    "kubectl",
+                    "-n",
+                    self.namespace,
+                    "port-forward",
+                    f"service/{self.service}",
+                    f"{self.local_port}:8000",
+                ],
+                stdout=self.log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except Exception:
+            self.log_handle.close()
+            self.log_handle = None
+            raise
         base_url = f"http://127.0.0.1:{self.local_port}"
         try:
-            wait_healthy(base_url)
+            wait_healthy(
+                base_url,
+                port_forward=self.process,
+                port_forward_log=self.log_path,
+            )
         except Exception:
             self.__exit__(*sys.exc_info())
             raise
@@ -155,7 +190,7 @@ class PortForward:
 
     def __exit__(self, _exc_type, _exc, _traceback) -> None:
         if self.process is not None and self.process.poll() is None:
-            self.process.send_signal(signal.SIGTERM)
+            self.process.terminate()
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
@@ -474,7 +509,15 @@ def wait_idle(base_url: str, timeout_seconds: float = 60) -> None:
 
 
 def write_json(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        temporary.write_text(
+            json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def write_jsonl(path: Path, rows: list[dict]) -> None:
@@ -501,6 +544,23 @@ def write_metrics_csv(path: Path, rows: list[dict]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def sampled_counter_delta(samples: list[dict], key: str) -> float | None:
+    values = []
+    for sample in samples:
+        value = sample.get(key)
+        if value is None:
+            continue
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(numeric):
+            values.append(numeric)
+    if not values:
+        return None
+    return values[-1] - values[0]
 
 
 def pod_metadata(namespace: str) -> list[dict[str, Any]] | None:
@@ -578,14 +638,41 @@ def system_metadata(namespace: str, *, include_kubernetes: bool = True) -> dict[
                 "capacity": node["status"].get("capacity"),
             }
         )
+    if sys.platform == "darwin":
+        cpu_brand = run_text(["sysctl", "-n", "machdep.cpu.brand_string"])
+        logical_cpu = run_text(["sysctl", "-n", "hw.logicalcpu"])
+        memory_bytes = run_text(["sysctl", "-n", "hw.memsize"])
+    elif os.name == "nt":
+        cpu_brand = run_text(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name",
+            ]
+        )
+        logical_cpu = str(os.cpu_count()) if os.cpu_count() is not None else None
+        memory_bytes = run_text(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+            ]
+        )
+    else:
+        cpu_brand = platform.processor() or None
+        logical_cpu = str(os.cpu_count()) if os.cpu_count() is not None else None
+        memory_bytes = None
+
     return {
         "host": {
             "platform": platform.platform(),
             "machine": platform.machine(),
             "python": platform.python_version(),
-            "cpu_brand": run_text(["sysctl", "-n", "machdep.cpu.brand_string"]),
-            "logical_cpu": run_text(["sysctl", "-n", "hw.logicalcpu"]),
-            "memory_bytes": run_text(["sysctl", "-n", "hw.memsize"]),
+            "cpu_brand": cpu_brand,
+            "logical_cpu": logical_cpu,
+            "memory_bytes": memory_bytes,
         },
         "docker": (
             {
@@ -722,6 +809,7 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
     current_environment = system_metadata(
         config["namespace"], include_kubernetes=not bool(args.base_url)
     )
+    current_runner_sha256 = sha256_file(Path(__file__).resolve())
     if not args.base_url:
         initial_pods = current_environment.get("kubernetes", {}).get("pods")
         initial_runtime_errors = pod_runtime_errors(initial_pods, initial_pods)
@@ -757,34 +845,81 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             raise RuntimeError("Cannot resume: explicit --base-url changed")
 
         if not args.base_url:
-            previous_container = manifest.get("environment", {}).get("kubernetes", {}).get("container")
-            current_container = current_environment.get("kubernetes", {}).get("container")
+            previous_environment = manifest.get("environment", {})
+            previous_kubernetes = previous_environment.get("kubernetes", {})
+            current_kubernetes = current_environment.get("kubernetes", {})
+            previous_container = previous_kubernetes.get("container")
+            current_container = current_kubernetes.get("container")
             if previous_container != current_container:
                 raise RuntimeError(
                     "Cannot resume: deployed container image, args, resources, or env changed"
                 )
+            for environment_key in ("host", "docker"):
+                if previous_environment.get(environment_key) != current_environment.get(
+                    environment_key
+                ):
+                    raise RuntimeError(
+                        f"Cannot resume: captured {environment_key} environment changed"
+                    )
+            if previous_kubernetes.get("nodes") != current_kubernetes.get("nodes"):
+                raise RuntimeError("Cannot resume: Kubernetes node environment changed")
+            resume_runtime_errors = pod_runtime_errors(
+                previous_kubernetes.get("pods"), current_kubernetes.get("pods")
+            )
+            if resume_runtime_errors:
+                raise RuntimeError(
+                    "Cannot resume: " + "; ".join(resume_runtime_errors)
+                )
+
+        previous_runner_sha256 = manifest.get("runner_sha256")
+        if (
+            previous_runner_sha256 is not None
+            and previous_runner_sha256 != current_runner_sha256
+        ):
+            raise RuntimeError("Cannot resume: benchmark runner code changed")
+        previous_git_commit = manifest.get("environment", {}).get("git", {}).get("commit")
+        current_git_commit = current_environment.get("git", {}).get("commit")
+        if previous_git_commit != current_git_commit:
+            raise RuntimeError("Cannot resume: Git commit changed")
 
         completed: set[int] = set()
+        saved: set[int] = set()
+        invalid: set[int] = set()
+        rerun_concurrencies = set(args.rerun_concurrencies or [])
         for phase in manifest.get("phases", []):
             concurrency = int(phase["concurrency"])
-            if concurrency in completed:
+            if concurrency in saved:
                 raise RuntimeError(f"Cannot resume: duplicate saved phase C={concurrency}")
-            if int(phase.get("success_count", 0)) != len(prompts) or int(phase.get("failure_count", 0)) != 0:
-                raise RuntimeError(f"Cannot resume: saved phase C={concurrency} is incomplete")
+            saved.add(concurrency)
+            phase_invalid = (
+                int(phase.get("success_count", 0)) != len(prompts)
+                or int(phase.get("failure_count", 0)) != 0
+                or bool(phase.get("metrics_scrape_errors"))
+                or bool(phase.get("runtime_validation_errors"))
+            )
             for file_key in ("requests_file", "metrics_file"):
                 saved_file = args.output / phase[file_key]
                 if not saved_file.is_file():
-                    raise RuntimeError(f"Cannot resume: missing {saved_file}")
-            completed.add(concurrency)
-        if not completed.issubset(set(concurrencies)):
+                    phase_invalid = True
+            if phase_invalid:
+                invalid.add(concurrency)
+            else:
+                completed.add(concurrency)
+        if not saved.issubset(set(concurrencies)):
             raise RuntimeError("Cannot resume: saved phase is not in the requested concurrency matrix")
+        unapproved_invalid = invalid - rerun_concurrencies
+        if unapproved_invalid:
+            values = sorted(unapproved_invalid)
+            raise RuntimeError(
+                "Cannot resume: invalid saved phase(s) require explicit rerun: "
+                f"{values}; pass --rerun-concurrencies {' '.join(str(value) for value in values)}"
+            )
 
-        rerun_concurrencies = set(args.rerun_concurrencies or [])
         if rerun_concurrencies:
-            missing = rerun_concurrencies - completed
+            missing = rerun_concurrencies - saved
             if missing:
                 raise RuntimeError(
-                    f"Cannot rerun phases that are not completed: {sorted(missing)}"
+                    f"Cannot rerun phases that are not saved: {sorted(missing)}"
                 )
             exclusion_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
             kept_phases = []
@@ -825,7 +960,7 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
                         "original_phase": phase,
                     },
                 )
-                completed.remove(concurrency)
+                completed.discard(concurrency)
             manifest["phases"] = kept_phases
         manifest.setdefault("resumed_at_utc", []).append(utc_now())
         manifest["status"] = "running"
@@ -853,7 +988,7 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             "model_endpoint": model_info,
             "server_version": server_version,
             "environment": current_environment,
-            "runner_sha256": sha256_file(Path(__file__).resolve()),
+            "runner_sha256": current_runner_sha256,
             "phases": [],
         }
     write_json(manifest_path, manifest)
@@ -896,24 +1031,26 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
         sampler.start()
         phase_started_utc = utc_now()
         phase_started = time.perf_counter()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-            futures = [
-                executor.submit(stream_completion, base_url, config, prompt, concurrency)
-                for prompt in prompts
-            ]
-            results = []
-            for future in concurrent.futures.as_completed(futures):
-                results.append(future.result())
-                if len(results) % 5 == 0 or len(results) == len(prompts):
-                    elapsed = time.perf_counter() - phase_started
-                    print(
-                        f"[concurrency={concurrency}] progress "
-                        f"{len(results)}/{len(prompts)} elapsed={elapsed:.1f}s",
-                        flush=True,
-                    )
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
+                futures = [
+                    executor.submit(stream_completion, base_url, config, prompt, concurrency)
+                    for prompt in prompts
+                ]
+                results = []
+                for future in concurrent.futures.as_completed(futures):
+                    results.append(future.result())
+                    if len(results) % 5 == 0 or len(results) == len(prompts):
+                        elapsed = time.perf_counter() - phase_started
+                        print(
+                            f"[concurrency={concurrency}] progress "
+                            f"{len(results)}/{len(prompts)} elapsed={elapsed:.1f}s",
+                            flush=True,
+                        )
+        finally:
+            sampler.stop()
         duration = time.perf_counter() - phase_started
         phase_finished_utc = utc_now()
-        sampler.stop()
         results.sort(key=lambda row: row["sequence"])
 
         label = f"c{concurrency:02d}"
@@ -940,8 +1077,8 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             "kubernetes_pods_after": (
                 pod_metadata(config["namespace"]) if not args.base_url else None
             ),
-            "requests_file": str(requests_file.relative_to(args.output)),
-            "metrics_file": str(metrics_file.relative_to(args.output)),
+            "requests_file": requests_file.relative_to(args.output).as_posix(),
+            "metrics_file": metrics_file.relative_to(args.output).as_posix(),
         }
         if not args.base_url:
             expected_pods = (
@@ -952,17 +1089,61 @@ def execute(args: argparse.Namespace, base_url: str, config: dict, prompts: list
             )
         else:
             phase["runtime_validation_errors"] = []
+        memory_event_deltas = {
+            "max": sampled_counter_delta(
+                sampler.samples, "pod_memory_events_max"
+            ),
+            "oom": sampled_counter_delta(
+                sampler.samples, "pod_memory_events_oom"
+            ),
+            "oom_kill": sampled_counter_delta(
+                sampler.samples, "pod_memory_events_oom_kill"
+            ),
+        }
+        phase["cgroup_memory_event_deltas"] = memory_event_deltas
+        phase["memory_pressure_warnings"] = []
+        if not args.base_url and not args.no_cgroup:
+            missing_memory_counters = [
+                key for key, value in memory_event_deltas.items() if value is None
+            ]
+            if missing_memory_counters:
+                phase["runtime_validation_errors"].append(
+                    "Unable to validate cgroup memory event counter(s): "
+                    + ", ".join(missing_memory_counters)
+                )
+            for key in ("oom", "oom_kill"):
+                delta = memory_event_deltas[key]
+                if delta is not None and delta != 0:
+                    phase["runtime_validation_errors"].append(
+                        f"Pod cgroup memory {key} counter changed by {delta:g}"
+                    )
+            max_delta = memory_event_deltas["max"]
+            if max_delta is not None and max_delta < 0:
+                phase["runtime_validation_errors"].append(
+                    f"Pod cgroup memory max counter decreased by {abs(max_delta):g}"
+                )
+            elif max_delta is not None and max_delta > 0:
+                phase["memory_pressure_warnings"].append(
+                    f"Pod cgroup memory max counter increased by {max_delta:g}"
+                )
         write_json(phase_file, phase)
         manifest["phases"].append(phase)
         manifest["phases"].sort(key=lambda saved: int(saved["concurrency"]))
         write_json(manifest_path, manifest)
-        if phase["runtime_validation_errors"]:
-            manifest["status"] = "runtime_validation_failed"
+        phase_validation_errors = list(phase["runtime_validation_errors"])
+        if phase["metrics_scrape_errors"]:
+            phase_validation_errors.append(
+                "Metric scrape errors were recorded during the phase"
+            )
+        if failed:
+            phase_validation_errors.append(
+                f"{failed} measured request(s) failed during the phase"
+            )
+        if phase_validation_errors:
+            manifest["status"] = "phase_validation_failed"
             manifest["finished_at_utc"] = utc_now()
             write_json(manifest_path, manifest)
-            raise RuntimeError(
-                "; ".join(str(error) for error in phase["runtime_validation_errors"])
-            )
+            raise RuntimeError("; ".join(str(error) for error in phase_validation_errors))
         print(
             f"[concurrency={concurrency}] completed in {duration:.2f}s; "
             f"success={len(results) - failed}/{len(results)}",

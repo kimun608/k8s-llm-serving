@@ -6,4 +6,4 @@ nodes:
   - role: control-plane
   - role: worker
     labels:
-      node-role.kubernetes.io/worker: ""
+      llm-serving.local/worker: "true"

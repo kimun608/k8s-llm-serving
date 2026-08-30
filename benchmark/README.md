@@ -26,6 +26,13 @@
 make benchmark-data
 ```
 
+Windows PowerShell에서는 Python 3을 준비한 뒤 다음 명령을 사용합니다.
+
+```powershell
+.\project.ps1 install-python
+.\project.ps1 benchmark-data
+```
+
 생성물:
 
 - `data/prompts.jsonl`: 정확히 100개인 고정 요청 집합
@@ -55,6 +62,8 @@ make benchmark-data
 
 MTP 비교는 같은 Qwen3.5-0.8B checkpoint를 사용해 `MTP off → on`만 변경했습니다. 완료된 MTP overlay는 Qwen 공식 vLLM recipe의 `{"method":"qwen3_next_mtp","num_speculative_tokens":2}`를 사용합니다. MTP는 cross-request cache가 아니라 native prediction head가 다음 token 후보를 제안하고 target model이 검증하는 speculative decoding입니다.
 
+Windows factor suite의 FP8 KV 구성은 `--kv-cache-dtype fp8 --calculate-kv-scales`를 사용합니다. 정식 실행 전 C20 gate로 기동·API·metrics를 확인하고, 응답 품질은 별도 후속 평가 항목으로 둡니다.
+
 ## 선정 지표
 
 ### 1. 사용자 체감 지표(클라이언트에서 측정)
@@ -82,6 +91,7 @@ MTP 비교는 같은 Qwen3.5-0.8B checkpoint를 사용해 `MTP off → on`만 �
 | prefix cache query/hit counter | 이후 prefix caching 최적화 효과 확인용 |
 | Pod cgroup CPU usage | 컨테이너 전체 프로세스의 평균 CPU core 사용량 |
 | Pod cgroup memory current | 컨테이너 전체의 peak memory working value |
+| Pod cgroup memory events | hard limit 접촉(`max`), OOM, OOM-kill counter 변화 |
 
 vLLM의 `process_*` 메트릭은 API 프로세스 관점일 수 있으므로, 실제 컨테이너 전체 자원량은 Pod 내부 cgroup v2의 `cpu.stat`와 `memory.current`를 함께 수집합니다.
 
@@ -109,6 +119,63 @@ make benchmark-baseline RESULTS_ROOT="$rerun_root"
 ```
 
 macOS에서는 이 Make target이 자동으로 `caffeinate -dimsu`를 사용합니다. 장시간 측정 중 노트북이 sleep 상태에 들어가면 Docker VM과 client timer가 함께 멈추고 E2E/TTFT 및 1초 metric time series가 왜곡되기 때문입니다. 다른 OS에서는 별도 명령 없이 그대로 실행합니다. 전원 연결을 권장하며, 실행 중 Docker Desktop의 CPU/memory 설정을 변경하지 않습니다.
+
+Windows PowerShell에서는 제출용 결과와 분리된 새 경로를 지정합니다. Windows/x86_64 결과는 기존 Apple M4/ARM64 결과와 직접 비교하지 않습니다.
+
+Windows manifest는 x86_64에서 관측된 메모리 headroom을 확보하기 위해 8GiB limit을 사용합니다. Windows 비교기는 host/Docker architecture, container 자원, image ID, Pod UID와 node를 manifest에서 엄격하게 확인합니다.
+
+```powershell
+$rerunRoot = Join-Path $env:TEMP ('k8s-llm-results-' + [guid]::NewGuid().ToString('N'))
+.\project.ps1 benchmark -Variant baseline -ResultsRoot $rerunRoot
+```
+
+### Windows CPU8 독립 요인 → 선별 조합 suite
+
+정식 Windows 주 실험은 모든 단독 요인을 같은 CPU8 baseline과 비교합니다.
+
+| 옵션 | Artifact | CPU | MTP2 | KV budget | KV dtype | 역할 |
+|---|---|---:|---|---:|---|---|
+| 기본 설정 | `baseline-cpu8` | 8 | off | 512MiB | BF16 | 공통 기준 |
+| MTP2만 적용 | `mtp-cpu8` | 8 | on | 512MiB | BF16 | MTP 독립 효과 |
+| KV cache 증설 | `baseline-kv768-cpu8` | 8 | off | 768MiB | BF16 | KV budget 독립 효과 |
+| FP8 KV cache | `baseline-cpu8-fp8` | 8 | off | 512MiB | FP8 | 같은 byte에서 KV 표현 효과 |
+| KV cache 증설+FP8 | `baseline-kv768-fp8-cpu8` | 8 | off | 768MiB | FP8 | 개선된 두 옵션의 조합 |
+
+기본 설정, MTP2, KV cache 768MiB와 FP8 KV cache의 `2,800`건을 먼저 실행합니다. 포화 구간에서 MTP2는 제외하고 개선된 KV cache 768MiB와 FP8 KV cache만 결합해 `700`건을 추가했습니다. 정식 합계는 `3,500`건이며 두 FP8 설정의 C20 20-request gate 합계 40건은 formal 수에서 분리합니다.
+
+```powershell
+$rerunRoot = Join-Path $PWD 'benchmark\results-windows-cpu8-factors-rerun'
+$coreVariants = @(
+  'baseline-cpu8',
+  'mtp-cpu8',
+  'baseline-kv768-cpu8',
+  'baseline-cpu8-fp8'
+)
+
+.\benchmark\scripts\run-windows-suite.ps1 `
+  -ResultsRoot $rerunRoot -Variants $coreVariants -ValidateOnly
+.\benchmark\scripts\run-windows-suite.ps1 `
+  -ResultsRoot $rerunRoot -Variants $coreVariants
+
+# core 비교 보고서에서 C20/50/100 개선 요인을 판정
+.\project.ps1 benchmark-compare-windows-cpu8-factors -ResultsRoot $rerunRoot
+
+$comboVariant = @('baseline-kv768-fp8-cpu8')
+.\benchmark\scripts\run-windows-suite.ps1 `
+  -ResultsRoot $rerunRoot -Variants $comboVariant -ValidateOnly
+.\benchmark\scripts\run-windows-suite.ps1 `
+  -ResultsRoot $rerunRoot -Variants $comboVariant
+```
+
+core 실행 후 생성된 비교 보고서에서 공통 baseline 대비 C20/50/100 처리량과 tail latency를 먼저 판정하고, 개선된 요인만 조합합니다. 이번 결과에서는 KV cache 768MiB와 FP8 KV cache를 선택했고 MTP2는 제외했습니다. `-ValidateOnly`는 실험 전 환경 점검만 수행합니다. 전체 실행은 기존 저장 결과 경로를 거부하고 Windows 절전을 억제하며 runner·모든 overlay·설정·Docker 자원·Git commit의 실행 중 변경을 검사합니다. OOM/OOM-kill, request failure, metric scrape 또는 Pod identity 오류가 있는 phase는 성공으로 승인하지 않습니다. Suite manifest는 두 invocation의 동일 provenance와 variant 합집합을 보존하고, 정상 종료와 처리된 실패 모두 steady-state Deployment를 `baseline-cpu8`으로 복구합니다.
+
+저장 결과를 raw artifact부터 다시 검증하려면 다음을 실행합니다.
+
+```powershell
+.\project.ps1 benchmark-compare-windows-cpu8-factors -ResultsRoot $rerunRoot
+```
+
+CPU6→CPU8 선정과 과거 누적 구성은 [보존된 Windows 순차 결과](results-windows-sequential-20260830/comparison-sequential/REPORT.md)에 남기며, 최종 KV와 FP8의 인과 판정에는 사용하지 않습니다.
 
 스크립트를 직접 실행할 수도 있습니다.
 
@@ -139,7 +206,22 @@ python3 benchmark/scripts/analyze.py \
 make benchmark-check
 ```
 
+Windows PowerShell에서는 `.\project.ps1 benchmark-check`를 사용합니다.
+
 ## 결과 구조
+
+### 결과 폴더 역할
+
+| 경로 | 상태 | 용도 |
+|---|---|---|
+| `results-windows-cpu8-factors-20260830/` | **최종 결과** | CPU8 기준, 세 단독 옵션과 선별 조합의 3,500건 및 검증 증거 |
+| `results-windows-sequential-20260830/` | 선행 Windows 결과 | CPU6→CPU8 선정과 누적 구성의 실행 기록 |
+| `results-windows-amd64-20260830/` | 초기 Windows 이식 기록 | x86_64 기동과 초기 설정 검증; 최종 인과 판정에는 사용하지 않음 |
+| `results/` | 이전 환경 기록 | Apple/ARM64 단계별 실험과 비교 결과 |
+
+최종 제출 수치에는 첫 번째 폴더만 사용한다. 나머지는 결과를 덮어쓰거나 링크를 깨지 않도록 이동하지 않고 재현 증거로 보존한다.
+
+### 설정별 산출물
 
 ```text
 results/baseline/
@@ -164,9 +246,9 @@ results/baseline/
 
 원시 요청 결과에는 모델 응답 본문 대신 식별자, token 수, timing, 상태만 저장합니다. 분석 스크립트는 원시 파일에서 표·SVG 그래프·Markdown 리포트를 다시 생성하므로 수작업으로 수치를 옮기지 않습니다.
 
-현재 완료된 실측 결과는 [results/baseline/REPORT.md](results/baseline/REPORT.md), 과제 제출 관점의 분석은 [../reports/results/02_BASELINE_BENCHMARK.md](../reports/results/02_BASELINE_BENCHMARK.md)에서 확인할 수 있습니다.
+최종 CPU8 factor 결과는 [fresh baseline](results-windows-cpu8-factors-20260830/baseline-cpu8/REPORT.md)과 [독립 요인 비교 보고서](results-windows-cpu8-factors-20260830/comparison-cpu8-factors/REPORT.md)에서 확인할 수 있습니다. 이전 실행 원본은 기존 결과 폴더에 그대로 보존하며, 전체 결론은 [최종 실험 보고서](../reports/final_report.md)에 있습니다.
 
-## 최적화 재측정과 비교
+## 보존된 Apple 최적화 재측정과 비교
 
 baseline을 보존한 채 native MTP와 capacity bundle을 각각 배포해 같은 700건을 실행합니다. capacity bundle은 KV `512→768MiB`와 `max-num-seqs` `20→24`를 동시에 적용하며, 아래 `mtp-kv-tuned` 명령·결과 경로는 재현성을 위해 유지한 legacy artifact ID입니다. 따라서 MTP 대비 차이는 bundle 전체의 관측 결과이며 KV-only 인과효과가 아닙니다.
 
@@ -189,7 +271,7 @@ make benchmark-compare RESULTS_ROOT="$rerun_root"
 
 `benchmark-compare`는 세 설정의 prompt SHA-256과 고정 config, phase별 100/100 성공, client/server token counter 일치를 먼저 검증합니다. 통과하면 [results/comparison/REPORT.md](results/comparison/REPORT.md), 비교 CSV와 10개 SVG 그래프를 생성합니다. 원인 분석과 적용 실패 후보는 [최종 최적화 리포트](../reports/results/04_OPTIMIZATION_FINAL_ANALYSIS.md)를 봅니다.
 
-### CPU limit 하나만 바꾸는 A/B
+### 보존된 Apple CPU limit A/B
 
 baseline의 container CPU limit만 6에서 8로 변경하는 별도 실험은 다음 순서로 실행합니다.
 
@@ -221,7 +303,7 @@ python3 benchmark/scripts/run_benchmark.py \
 
 교체 전 request JSONL, metric CSV, phase JSON과 제외 사유는 결과 폴더의 `excluded/` 아래에 자동 보존됩니다.
 
-### CPU limit 8 고정 MTP·capacity bundle 비교
+### 보존된 Apple CPU8 MTP·capacity bundle 비교
 
 완료된 `baseline-cpu8`을 기준으로 Pod CPU·memory request/limit을 고정하고 MTP, 이어서 capacity bundle(KV `512→768MiB` + `max-num-seqs` `20→24`)을 적용합니다. `mtp-kv-tuned-cpu8`은 legacy target 이름이며 두 변경의 개별 인과효과를 분리하는 KV-only 실험이 아닙니다.
 
@@ -239,9 +321,11 @@ make benchmark-compare-cpu8-optimizations
 
 `benchmark-compare-cpu8-optimizations`는 세 설정의 총 2,100건, workload/token counter/timer/metric scrape와 rendered container 명세를 검증합니다. 실측 표와 그래프는 [results/comparison-cpu8-optimizations/REPORT.md](results/comparison-cpu8-optimizations/REPORT.md), bundle 전체의 관측 결과와 원인·권고는 [CPU8 MTP·capacity bundle 분석 리포트](../reports/results/06_CPU8_MTP_KV_ANALYSIS.md)에 있습니다.
 
-### CPU8 KV × max-num-seqs 분리 실험과 전체 비교
+### 보존된 Apple CPU8 KV × max-num-seqs 분리 실험과 전체 비교
 
 Legacy bundle의 두 변수를 분리하기 위해 CPU8·MTP2를 고정하고 다음 두 설정을 각 700건씩 추가 측정했습니다.
+
+아래 수치표와 `benchmark/results/...` 링크는 이전 실행 기록입니다. 최종 결과는 [CPU8 독립 요인 comparison](results-windows-cpu8-factors-20260830/comparison-cpu8-factors/REPORT.md)과 [최종 실험 보고서](../reports/final_report.md)를 사용합니다.
 
 - `mtp-kv768-cpu8`: `max-num-seqs=20`을 유지하고 KV만 `512→768MiB`
 - `mtp-seq24-cpu8`: KV `512MiB`를 유지하고 `max-num-seqs`만 `20→24`

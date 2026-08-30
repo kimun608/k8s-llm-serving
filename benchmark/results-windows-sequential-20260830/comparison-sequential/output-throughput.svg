@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="650" viewBox="0 0 1180 650" role="img" aria-labelledby="title desc">
+<title id="title">Windows sequential experiment: output throughput</title>
+<desc id="desc">Output token throughput for five sequential Windows x86-64 CPU-serving stages at client concurrencies 1, 2, 5, 10, 20, 50, and 100.</desc>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="590.0" y="34" text-anchor="middle" font-size="22" font-family="sans-serif" font-weight="600">Windows 5-stage sequential output throughput</text>
+<text x="590.0" y="59" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#4b5563">Same workload, image, host, Docker and Kubernetes nodes · 100 requests per point</text>
+<line x1="90" y1="580.00" x2="1140" y2="580.00" stroke="#e5e7eb"/>
+<text x="80" y="584.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">0.0</text>
+<line x1="90" y1="495.00" x2="1140" y2="495.00" stroke="#e5e7eb"/>
+<text x="80" y="499.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">23.2</text>
+<line x1="90" y1="410.00" x2="1140" y2="410.00" stroke="#e5e7eb"/>
+<text x="80" y="414.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">46.3</text>
+<line x1="90" y1="325.00" x2="1140" y2="325.00" stroke="#e5e7eb"/>
+<text x="80" y="329.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">69.5</text>
+<line x1="90" y1="240.00" x2="1140" y2="240.00" stroke="#e5e7eb"/>
+<text x="80" y="244.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">92.7</text>
+<line x1="90" y1="155.00" x2="1140" y2="155.00" stroke="#e5e7eb"/>
+<text x="80" y="159.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#4b5563">115.9</text>
+<line x1="90.00" y1="155" x2="90.00" y2="580" stroke="#f3f4f6"/>
+<text x="90.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">1</text>
+<line x1="265.00" y1="155" x2="265.00" y2="580" stroke="#f3f4f6"/>
+<text x="265.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">2</text>
+<line x1="440.00" y1="155" x2="440.00" y2="580" stroke="#f3f4f6"/>
+<text x="440.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">5</text>
+<line x1="615.00" y1="155" x2="615.00" y2="580" stroke="#f3f4f6"/>
+<text x="615.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">10</text>
+<line x1="790.00" y1="155" x2="790.00" y2="580" stroke="#f3f4f6"/>
+<text x="790.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">20</text>
+<line x1="965.00" y1="155" x2="965.00" y2="580" stroke="#f3f4f6"/>
+<text x="965.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">50</text>
+<line x1="1140.00" y1="155" x2="1140.00" y2="580" stroke="#f3f4f6"/>
+<text x="1140.00" y="605" text-anchor="middle" font-size="13" font-family="sans-serif">100</text>
+<line x1="90" y1="155" x2="90" y2="580" stroke="#111827"/>
+<line x1="90" y1="580" x2="1140" y2="580" stroke="#111827"/>
+<text x="615.0" y="632" text-anchor="middle" font-size="14" font-family="sans-serif">Client concurrency</text>
+<text transform="translate(23 367.5) rotate(-90)" text-anchor="middle" font-size="14" font-family="sans-serif">Output tokens / second</text>
+<line x1="90" y1="89" x2="114" y2="89" stroke="#1d4ed8" stroke-width="3"/>
+<text x="121" y="93" font-size="12" font-family="sans-serif">S0 CPU6 baseline</text>
+<polyline points="90.00,519.68 265.00,474.97 440.00,385.47 615.00,306.93 790.00,280.32 965.00,277.65 1140.00,273.23" fill="none" stroke="#1d4ed8" stroke-width="2.5"/>
+<circle cx="90.00" cy="519.68" r="3.5" fill="#1d4ed8"/>
+<circle cx="265.00" cy="474.97" r="3.5" fill="#1d4ed8"/>
+<circle cx="440.00" cy="385.47" r="3.5" fill="#1d4ed8"/>
+<circle cx="615.00" cy="306.93" r="3.5" fill="#1d4ed8"/>
+<circle cx="790.00" cy="280.32" r="3.5" fill="#1d4ed8"/>
+<circle cx="965.00" cy="277.65" r="3.5" fill="#1d4ed8"/>
+<circle cx="1140.00" cy="273.23" r="3.5" fill="#1d4ed8"/>
+<line x1="440" y1="89" x2="464" y2="89" stroke="#7c3aed" stroke-width="3"/>
+<text x="471" y="93" font-size="12" font-family="sans-serif">S1 CPU8 baseline</text>
+<polyline points="90.00,498.18 265.00,437.19 440.00,326.40 615.00,237.03 790.00,208.46 965.00,203.16 1140.00,193.64" fill="none" stroke="#7c3aed" stroke-width="2.5"/>
+<circle cx="90.00" cy="498.18" r="3.5" fill="#7c3aed"/>
+<circle cx="265.00" cy="437.19" r="3.5" fill="#7c3aed"/>
+<circle cx="440.00" cy="326.40" r="3.5" fill="#7c3aed"/>
+<circle cx="615.00" cy="237.03" r="3.5" fill="#7c3aed"/>
+<circle cx="790.00" cy="208.46" r="3.5" fill="#7c3aed"/>
+<circle cx="965.00" cy="203.16" r="3.5" fill="#7c3aed"/>
+<circle cx="1140.00" cy="193.64" r="3.5" fill="#7c3aed"/>
+<line x1="790" y1="89" x2="814" y2="89" stroke="#059669" stroke-width="3"/>
+<text x="821" y="93" font-size="12" font-family="sans-serif">S2 CPU8 MTP2</text>
+<polyline points="90.00,468.20 265.00,405.94 440.00,318.04 615.00,312.78 790.00,312.25 965.00,312.63 1140.00,313.46" fill="none" stroke="#059669" stroke-width="2.5"/>
+<circle cx="90.00" cy="468.20" r="3.5" fill="#059669"/>
+<circle cx="265.00" cy="405.94" r="3.5" fill="#059669"/>
+<circle cx="440.00" cy="318.04" r="3.5" fill="#059669"/>
+<circle cx="615.00" cy="312.78" r="3.5" fill="#059669"/>
+<circle cx="790.00" cy="312.25" r="3.5" fill="#059669"/>
+<circle cx="965.00" cy="312.63" r="3.5" fill="#059669"/>
+<circle cx="1140.00" cy="313.46" r="3.5" fill="#059669"/>
+<line x1="90" y1="116" x2="114" y2="116" stroke="#ea580c" stroke-width="3"/>
+<text x="121" y="120" font-size="12" font-family="sans-serif">S3 CPU8 MTP2 KV768</text>
+<polyline points="90.00,468.30 265.00,405.05 440.00,316.09 615.00,285.95 790.00,282.28 965.00,282.17 1140.00,276.74" fill="none" stroke="#ea580c" stroke-width="2.5"/>
+<circle cx="90.00" cy="468.30" r="3.5" fill="#ea580c"/>
+<circle cx="265.00" cy="405.05" r="3.5" fill="#ea580c"/>
+<circle cx="440.00" cy="316.09" r="3.5" fill="#ea580c"/>
+<circle cx="615.00" cy="285.95" r="3.5" fill="#ea580c"/>
+<circle cx="790.00" cy="282.28" r="3.5" fill="#ea580c"/>
+<circle cx="965.00" cy="282.17" r="3.5" fill="#ea580c"/>
+<circle cx="1140.00" cy="276.74" r="3.5" fill="#ea580c"/>
+<line x1="440" y1="116" x2="464" y2="116" stroke="#be123c" stroke-width="3"/>
+<text x="471" y="120" font-size="12" font-family="sans-serif">S4 CPU8 MTP2 KV768 FP8</text>
+<polyline points="90.00,456.04 265.00,404.11 440.00,318.28 615.00,272.55 790.00,274.28 965.00,272.90 1140.00,270.44" fill="none" stroke="#be123c" stroke-width="2.5"/>
+<circle cx="90.00" cy="456.04" r="3.5" fill="#be123c"/>
+<circle cx="265.00" cy="404.11" r="3.5" fill="#be123c"/>
+<circle cx="440.00" cy="318.28" r="3.5" fill="#be123c"/>
+<circle cx="615.00" cy="272.55" r="3.5" fill="#be123c"/>
+<circle cx="790.00" cy="274.28" r="3.5" fill="#be123c"/>
+<circle cx="965.00" cy="272.90" r="3.5" fill="#be123c"/>
+<circle cx="1140.00" cy="270.44" r="3.5" fill="#be123c"/>
+</svg>

@@ -1,0 +1,6 @@
+stage_order,stage,display_name,cpu_limit,mtp_enabled,kv_cache_mib,kv_cache_dtype,kv_cache_tokens,max_concurrency_at_2048_tokens,pod_uid,restart_count
+0,baseline-cpu8,CPU8 baseline,8,false,512,auto (BF16),19894,9.71,fd8e47c2-1612-41b9-b53c-349fd654400b,0
+1,mtp-cpu8,MTP2 only,8,true,512,auto (BF16),9137,4.46,da7ff146-6d2c-4036-bfb1-c51d32506cb9,0
+2,baseline-kv768-cpu8,KV768 only,8,false,768,auto (BF16),29842,14.57,b31fb896-7aeb-46d9-9bfe-8925a5895eda,0
+3,baseline-cpu8-fp8,FP8 KV only,8,false,512,fp8,30720,15.00,9faa2d07-c271-4113-926a-305bc00264c0,0
+4,baseline-kv768-fp8-cpu8,KV768 + FP8 KV,8,false,768,fp8,46284,22.60,8b4b2cac-de1a-461f-b220-d09f1d54d6e3,0
